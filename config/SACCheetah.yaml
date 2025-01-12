@@ -1,0 +1,47 @@
+GymParams:
+  RobotParams:
+    xml_file: half_cheetah.xml
+  TaskParams:
+    max_episode_steps: 500
+    evaluation_period: 10000
+    num_episodes_to_run: 1
+    forward_reward_weight: 1.0
+    ctrl_cost_weight: 0.1
+    reset_noise_scale: 0.1
+    exclude_current_positions_from_observation: true
+    ini_states: null
+    change_dynamics: false
+    context_horizon: 10
+  SimulationParams:
+    num_simulation_steps: 1
+    num_simulation_steps_per_iteration: 1
+    num_iterations: 1000
+    num_episodes_per_iteration: 1
+    enable_rendering: false
+    frame_skip: 5
+    default_camera_config:
+      distance: 4.0
+AgentParams:
+  agent_name: SAC
+  mode: train
+  soft_alpha: 0.005
+  learning_rate_actor: 0.0003
+  learning_rate_critic: 0.0003
+  batch_size: 512
+  target_network_frequency: 1
+  noise_clip: 0.5
+  entropy_alpha: 0.02
+  gamma_discount: 0.99
+  model_path: ''
+  total_training_steps: 1000000
+  replay_buffer_size: 1000000
+  learning_starts: 5000
+  policy_update_frequency: 1
+  use_layer_norm: true
+JobParams:
+  gpu: true
+  job_name: ''
+  run_mode: train
+  seed: 1
+  capture_video: false
+  output_path: ''

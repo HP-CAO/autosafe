@@ -1,0 +1,102 @@
+GymParams:
+  RobotParams:
+    quad_type: 2d
+  TaskParams:
+    task_type: stabilization
+    norm_act_scale: 0.1
+    obs_goal_horizon: 0
+    rew_state_weight: 1.0
+    rew_act_weight: 0.0001
+    rew_exponential: true
+    done_on_out_of_bound: true
+    info_mse_metric_state_weight: null
+    normalized_rl_action_space: false
+    task_info:
+      stabilization_goal:
+      - 2
+      - 2
+      - 2.5
+      stabilization_goal_tolerance: 0.05
+    cost_fn_type: rl_reward
+    ctrl_freq: 50
+    ini_states:
+      init_x: 0
+      init_x_dot: 0
+      init_z: 0
+      init_z_dot: 0
+      init_theta: 0
+      init_theta_dot: 0
+    init_state_randomization_info: null
+    prior_prop: null
+    inertial_prop: null
+    randomized_inertial_prop: false
+    inertial_prop_randomization_info: null
+    constraints: null
+    done_on_violation: false
+    use_constraint_penalty: false
+    constraint_penalty: -1.0
+    disturbances: null
+    adversary_disturbance: null
+    adversary_disturbance_offset: 0.0
+    adversary_disturbance_scale: 0.01
+    max_episode_steps: 500
+    evaluation_period: 10000
+    num_episodes_to_run: 1
+    task_reset_mode: random
+    change_dynamics: true
+    context_horizon: 10
+  SimulationParams:
+    record: false
+    gui: false
+    verbose: false
+    num_drones: 1
+    output_dir: null
+    seed: null
+    info_in_reset: true
+    pyb_freq: 50
+AgentParams:
+  agent_name: SAC
+  mode: train
+  soft_alpha: 0.005
+  learning_rate_actor: 0.0003
+  learning_rate_critic: 0.0005
+  batch_size: 512
+  target_network_frequency: 1
+  noise_clip: 0.5
+  entropy_alpha: 0.02
+  gamma_discount: 0.99
+  model_path: ''
+  total_training_steps: 1000000
+  replay_buffer_size: 1000000
+  learning_starts: 10000
+  policy_update_frequency: 1
+  use_layer_norm: true
+JobParams:
+  gpu: true
+  job_name: ''
+  run_mode: train
+  seed: 1
+  capture_video: false
+  output_path: ''
+ContextIBParams:
+  epochs: 5000
+  batch_size: 254
+  replay_buffer_size: 1000000
+  learning_rate: 0.001
+  model_name: PhyIB_model
+  context_dim: 3
+  embedding_dim: 5
+  context_reparameterize: false
+  context_sensitivity: 0.1
+  use_layer_norm: true
+  beta: 0.0007
+  accepctance_threshold: 0.1
+  infoNCE_mode: paired
+  prior: Isotropic_Gaussian
+  loss_function: IB_loss
+  loss_reduction: sum
+  num_samples: 15
+  num_negatives: 30
+  model_path: ''
+  pretrain: true
+  training_period: 2000

@@ -1,0 +1,12 @@
+tensorflow[and-cuda]
+gymnasium==1.0.0a1
+hydra-core
+pygame
+tensorboardX
+tqdm
+matplotlib
+tensorflow_probability
+tf_keras
+matplotlib
+mujoco
+imageio
