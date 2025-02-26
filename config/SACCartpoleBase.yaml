@@ -1,11 +1,11 @@
 GymParams:
   RobotParams:
-    x_threshold: 0.35
+    x_threshold: 1.0
     theta_dot_threshold: 15.0
     gravity: 9.8
     mass_cart: 0.94
     mass_pole: 0.23
-    action_mag: 10.0
+    action_mag: 20
     length: 0.64
     friction_cart: 10.0
     friction_pole: 0.0011
@@ -22,11 +22,12 @@ GymParams:
     - 0.0
     - 0.0
     max_episode_steps: 500
-    evaluation_period: 20000
+    evaluation_period: 10000
     num_episodes_to_run: 10
     task_reset_mode: random
-    change_dynamics: true
-    context_horizon: 20
+    change_dynamics: false
+    context_horizon: 10
+    task_type: balance
   SimulationParams:
     random_reset_train: true
     random_reset_eval: false
@@ -38,20 +39,28 @@ GymParams:
 AgentParams:
   agent_name: SAC
   mode: train
-  soft_alpha: 0.01
+  soft_alpha: 0.005
   learning_rate_actor: 0.0003
-  learning_rate_critic: 0.0005
-  batch_size: 254
+  learning_rate_critic: 0.0003
+  batch_size: 128
   target_network_frequency: 1
   noise_clip: 0.5
-  entropy_alpha: 0.01
+  entropy_alpha: 0.1
   gamma_discount: 0.99
   model_path: ''
-  total_training_steps: 1000000
-  replay_buffer_size: 1000000
-  learning_starts: 10000
+  total_training_steps: 100000
+  replay_buffer_size: 100000
+  learning_starts: 128
   policy_update_frequency: 1
-  use_layer_norm: true
+  use_layer_norm: false
+  actor_hidden_units:
+  - 256
+  - 256
+  critic_hidden_units:
+  - 256
+  - 256
+  actor_activation: relu
+  critic_activation: relu
 JobParams:
   gpu: true
   job_name: ''
@@ -59,25 +68,4 @@ JobParams:
   seed: 1
   capture_video: false
   output_path: ''
-ContextIBParams:
-  epochs: 5000
-  batch_size: 254
-  replay_buffer_size: 1000000
-  learning_rate: 0.001
-  model_name: PhyIB_model
-  context_dim: 3
-  embedding_dim: 5
-  context_reparameterize: false
-  context_sensitivity: 0.1
-  use_layer_norm: true
-  beta: 0.0007
-  accepctance_threshold: 0.1
-  infoNCE_mode: paired
-  prior: Isotropic_Gaussian
-  loss_function: IB_loss
-  loss_reduction: sum
-  num_samples: 15
-  num_negatives: 30
-  model_path: ''
-  pretrain: true
-  training_period: 2000
+  experiment_name: ''

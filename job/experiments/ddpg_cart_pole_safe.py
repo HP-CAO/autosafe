@@ -16,7 +16,7 @@ from hydra.core.config_store import ConfigStore
 from tensorboardX import SummaryWriter
 from agent.OffPolicyRL.AgentEnvInt import collect_data
 from agent.OffPolicyRL.archived.ReplayBuffer import ReplayMemory
-from job.safe_rl.model_based_design import *
+from job.experiments.model_based_design import *
 
 
 @dataclasses.dataclass
@@ -26,7 +26,7 @@ class AllConfig:
     JobParams: JobConfig = dataclasses.field(default_factory=JobConfig)
 
 
-@hydra.main(version_base=None, config_path="../../config", config_name='DDPG_Cartpole_Safe_Config')
+@hydra.main(version_base=None, config_path="../../config", config_name='DDPGCartpoleConfig')
 def run(cfg: AllConfig) -> None:
     if not cfg.JobParams.gpu:
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -181,6 +181,7 @@ def eval_agent(agent, env, cfg):
 
             if terminations or truncations:
                 break
+
     # The performance evaluation metric should be implemented based on the task objective.
     performance = np.sum(performance_score_list)
     return performance

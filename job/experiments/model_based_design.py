@@ -11,6 +11,12 @@ MATRIX_P = np.array([[13.3425, 6.73778, 16.2166, 3.47318],
 SAFE_CONTROLLER_STEP = 10  # think of distance|safe value based switching
 SAFE_CONTROLLER_ACTIVATE_THRESHOLD = 1.0
 
+SYSTEM_A = np.array([[1.0000, 0.0333, 0, 0],
+                     [0.6465, 1.5268, 2.1666, 0.4020],
+                     [0, 0, 1.0000, 0.0333],
+                     [-1.5151, -1.2348, -4.3123, 0.0577]])
+
+SYSTEM_B = np.array([[0, 0.0334, 0, -0.0783]])
 
 def activate_safe_controller_condition(state, activate_threshold=SAFE_CONTROLLER_ACTIVATE_THRESHOLD):
     safe_value = np.array(state).transpose() @ MATRIX_P @ np.array(state)
@@ -77,3 +83,16 @@ def get_init_condition_in_safety_envelope(n_points_per_dim=1):
     # print(f"Generating {len(initial_condition_list)} conditions for training ...")
 
     return initial_condition_list
+
+
+class ModelbasedAgent:
+    def __init__(self, feedback_law=F):
+        self.feedback_law = feedback_law
+
+    def get_action(self, tracking_error):
+        x, x_dot, theta, theta_dot = tracking_error
+        action_abs = F[0] * x + F[1] * x_dot + F[2] * theta + F[3] * theta_dot
+        return  action_abs
+
+
+

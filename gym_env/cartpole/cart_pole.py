@@ -3,6 +3,7 @@ This a modified version of the CartPole environment from Gymnasium, with continu
 The original evn can be found at:
 https://github.com/Farama-Foundation/Gymnasium/blob/main/gymnasium/envs/classic_control/cartpole.py
 """
+import copy
 import math
 from typing import Optional, Tuple, Union
 
@@ -12,7 +13,7 @@ import gymnasium as gym
 import dataclasses
 from gymnasium import spaces
 from gymnasium.error import DependencyNotInstalled
-
+import matplotlib.pyplot as plt
 
 # We define the configuration classes to make the environment configurable using configuration files
 @dataclasses.dataclass
@@ -43,6 +44,7 @@ class TaskConfig:
     task_reset_mode: str = 'random'
     change_dynamics: bool = False
     context_horizon: int = 10
+    task_type: str = 'swing_up'  # 'swing_up' or 'balance' or 'position-tracking'
 
 
 @dataclasses.dataclass
@@ -168,7 +170,7 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         self.kinematics_integrator = self.env_config.SimulationParams.kinematics_integrator
 
         self.x_threshold = self.env_config.RobotParams.x_threshold
-        self.theta_threshold_radians = 0.2094
+        self.theta_threshold_radians = 0.785 # 45 degrees
 
         # observation space
         high = np.array(
@@ -197,6 +199,8 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         self.steps_beyond_terminated = None
         self._elapsed_steps = 0
+        self.control_goal = self.env_config.TaskParams.control_goal
+        self.control_goal_array = np.array([self.control_goal[0], 0, self.control_goal[1], 0])
 
     def step(self, action):
         assert self.action_space.contains(
@@ -249,17 +253,27 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         self.state = (x, x_dot, theta, theta_dot)
 
         # add balancing task termination condition
-        terminated = bool(
-            x < -self.x_threshold
-            or x > self.x_threshold
-            or theta < -self.theta_threshold_radians
-            or theta > self.theta_threshold_radians
-        )
+        if self.env_config.TaskParams.task_type == 'balance':
+            terminated = bool(
+                x < -self.x_threshold
+                or x > self.x_threshold
+                or theta < -self.theta_threshold_radians
+                or theta > self.theta_threshold_radians
+            )
+        elif self.env_config.TaskParams.task_type == 'swing_up':
+            terminated = bool(
+                x < -self.x_threshold
+                or x > self.x_threshold
+                or theta_dot < - self.env_config.RobotParams.theta_dot_threshold
+                or theta_dot > self.env_config.RobotParams.theta_dot_threshold
+            )
+        else:
+            raise ValueError(f"Unknown task type: {self.env_config.TaskParams.task_type}")
 
         self._elapsed_steps += 1
 
-        truncated = bool(self._elapsed_steps >= self.env_config.TaskParams.max_episode_steps)
-
+        # truncated = bool(self._elapsed_steps >= self.env_config.TaskParams.max_episode_steps)
+        truncated = None # we control the truncation in the interaction loop
         reward = self.reward_function(self.state, action)
 
         if self.render_mode == "human" and self.env_config.SimulationParams.enable_rendering:
@@ -271,7 +285,7 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
     def reward_function(self, state, action):
         x, x_dot, theta, theta_dot = state
         observations = np.array([x, x_dot, math.sin(theta), math.cos(theta), theta_dot])
-        distance_score = self.get_distance_score(observations, self.env_config.TaskParams.control_goal)
+        distance_score = self.get_distance_score(observations, self.control_goal)
         distance_reward = distance_score
         action_penalty = -1 * self.env_config.TaskParams.action_penalty * action * action
         r = distance_reward + action_penalty
@@ -292,9 +306,14 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
                 ran_x = np.random.uniform(-0.8 * self.env_config.RobotParams.x_threshold,
                                           0.8 * self.env_config.RobotParams.x_threshold)
                 ran_v = 0
-                # ran_theta = np.random.normal(math.pi, 0.8) # for swing up task
-                ran_theta = np.random.uniform(-0.12, 0.12)  # for balancing task
+
+                if self.env_config.TaskParams.task_type == 'swing_up':
+                    ran_theta = np.random.normal(math.pi, 0.8) # for swing up task
+                else:
+                    ran_theta = np.random.uniform(-0.12, 0.12)  # for balancing task
+
                 ran_theta_v = 0
+
                 self.state = [ran_x, ran_v, ran_theta, ran_theta_v]
             else:
                 self.state = self.env_config.TaskParams.ini_states  # reset to the pointing down equilibrium
@@ -445,7 +464,7 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         return distance_score
 
     def get_performance_score(self):
-        control_goal = self.env_config.TaskParams.control_goal
+        control_goal = self.control_goal
         x, x_dot, theta, theta_dot = self.state
         observation = np.array([x, x_dot, math.sin(theta), math.cos(theta), theta_dot])
         return self.get_distance_score(observation, control_goal)
@@ -465,3 +484,86 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         self.pole_mass_length_half = self.masspole * self.half_length
 
         return np.array([new_mass_pole, new_mass_cart, new_pole_length], dtype=np.float32)
+
+    def set_control_goal_array(self):
+        self.control_goal_array = np.array([self.control_goal[0], 0, self.control_goal[1], 0])
+
+    def generate_control_tasks(self, mode='train'):
+        # the control task is characterized by the initial-state and the control goal
+        task_list = []
+        if mode == 'train':
+            x_range = self.env_config.RobotParams.x_threshold * 0.5
+            x_left = - 1 * x_range
+            x_right = - x_left
+            x_init_list = np.random.uniform(x_left, x_right, 100)
+            x_goal_list = np.random.uniform(x_left, x_right, 100)
+            for x_init, x_goal in zip(x_init_list, x_goal_list):
+                ran_theta = np.random.uniform(-0.25, 0.25)
+                task_list.append({'init_states': [0, 0, ran_theta, 0], 'control_goal': [x_goal, 0]})
+        else:
+            x_range = self.env_config.RobotParams.x_threshold * 0.8
+            x_left = - 1 * x_range
+            x_right = - x_left
+            # we fix the initial state and control goal for evaluation
+            x_goal_list = np.linspace(start=x_left, stop=x_right, num=10)
+            for x_goal in x_goal_list:
+                ran_theta = np.random.uniform(-0.25, 0.25)
+                task_list.append({'init_states': [0, 0, ran_theta, 0], 'control_goal': [x_goal, 0]})
+                task_list.append({'init_states': [0, 0, ran_theta, 0], 'control_goal': [x_goal, 0]})
+        return task_list
+
+
+    def plot_task_result(self, task_list):
+        fig = plt.figure(figsize=(6, 6))
+        for task_info in task_list:
+            x, _, y, _ = task_info['init_states']
+            x1, y1 = task_info['control_goal']
+            crash = task_info['crash']
+            x_final, _, y_final, _  = task_info["final_state"]
+
+            dx = x_final - x
+            dy = y_final - y
+            color = 'red' if crash else 'blue'
+
+            # Draw arrow from (x, y) to (x1, y1)
+            plt.arrow(x, y, dx, dy, color=color, width=0.005, length_includes_head=True)
+            plt.scatter(x, y, marker='o', color='black', s=50)
+            plt.scatter(x_final, y_final, marker='^', color='black', s=50)
+            plt.scatter(x1, y1, marker='*', color='green', s=50)
+
+        # Configure axes
+        # plt.xlim(-1.0, 1.0)  # Limit x-axis to [-1, 1]
+        # plt.ylim(-0.15, 0.15)
+        plt.xlabel('X')
+        plt.ylabel('$theta$')
+        plt.grid(True)  # Add grid lines
+        from matplotlib.patches import Patch
+        from matplotlib.lines import Line2D
+
+        # Create custom legend handles:
+        # For arrow colors (success and failure)
+        success_patch = Patch(color='blue', label='Success')
+        failure_patch = Patch(color='red', label='Failure')
+        # For markers (start and goal)
+        start_marker = Line2D([0], [0], marker='o', color='w', label='Start',
+                              markerfacecolor='black', markersize=8)
+        end_marker = Line2D([0], [0], marker='^', color='w', label='End',
+                             markerfacecolor='black', markersize=8)
+        goal_marker = Line2D([0], [0], marker='*', color='green', label='Goal',
+                             markerfacecolor='black', markersize=8)
+
+        # Combine all legend handles
+        plt.legend(handles=[success_patch, failure_patch, start_marker, end_marker, goal_marker])
+        plt.title('Multi-Task Control for CartPole')
+        return fig
+
+    def predict_next_state(self, action_input, System_A_matrix, System_B_matrix):
+        action_input = np.array([action_input]).transpose()
+        current_state = np.array(copy.deepcopy(self.state) - self.control_goal_array).transpose()
+        next_state = System_A_matrix @ current_state + System_B_matrix.transpose() @ action_input
+        next_state = next_state.transpose() + self.control_goal_array
+        return next_state
+
+
+
+

@@ -16,4 +16,5 @@ class JobConfig:
     """whether to capture videos of the agent performances (check out `videos` folder)"""
     capture_video: bool = False
     """saving path for the running logs, models and etc"""
-    output_path: str = ''
+    output_path: str = '',
+    experiment_name: str = 'base'
