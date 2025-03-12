@@ -21,7 +21,15 @@ class TaskConfig:
     normalized_rl_action_space: bool = False
     # task
     task_info: dict = field(default_factory=lambda: ({"stabilization_goal": [2, 2, 2.5],
-                                                      "stabilization_goal_tolerance": 0.05}))  # A dictionary with the information used to generate the task X and U references
+                                                      "stabilization_goal_tolerance": 0.05,
+                                                      'trajectory_type': 'circle',
+                                                      'num_cycles': 1,
+                                                      'trajectory_plane': 'zx',
+                                                      'trajectory_position_offset': [0.5, 0],
+                                                      'trajectory_scale': -0.5,
+                                                      'proj_point': [0, 0, 0.5],
+                                                      'proj_normal': [0, 1, 1],
+                                                      }))  # A dictionary with the information used to generate the task X and U references
     cost_fn_type: str = 'rl_reward'  # "rl_reward" | "quadratic Cost function choice for computing the reward in .step()
     ctrl_freq: int = 50  # The frequency at which the environment steps
     # episode_len_sec: int = 5  # maximum episode duration in seconds

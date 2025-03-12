@@ -187,7 +187,6 @@ class Quadrotor(BaseAviary):
         # BaseAviary constructor, called after defining the custom args,
         # since some BenchmarkEnv init setup can be task(custom args)-dependent.
         super().__init__(params)
-
         # Store initial state info.
         self.INIT_STATE_LABELS = {
             QuadType.ONE_D: ['init_x', 'init_x_dot'],
@@ -1001,4 +1000,30 @@ class Quadrotor(BaseAviary):
             # scale = np.array(
             #     [np.random.choice([np.random.uniform(a, b), np.random.uniform(c, d)], p=prob) for _ in range(3)])
         return scale
+
+    # todo generate control_tasks as a pair of initial state and control goal
+    # todo implement env reset function at the begining of each episode to reset the state and goal
+    def generate_control_tasks(self, mode='train'):
+        # the control task is characterized by the initial-state and the control goal
+        task_list = []
+        if mode == 'train':
+            x_range = self.env_config.RobotParams.x_threshold * 0.5
+            x_left = - 1 * x_range
+            x_right = - x_left
+            x_init_list = np.random.uniform(x_left, x_right, 100)
+            x_goal_list = np.random.uniform(x_left, x_right, 100)
+            for x_init, x_goal in zip(x_init_list, x_goal_list):
+                ran_theta = np.random.uniform(-0.25, 0.25)
+                task_list.append({'init_states': [0, 0, ran_theta, 0], 'control_goal': [x_goal, 0]})
+        else:
+            x_range = self.env_config.RobotParams.x_threshold * 0.8
+            x_left = - 1 * x_range
+            x_right = - x_left
+            # we fix the initial state and control goal for evaluation
+            x_goal_list = np.linspace(start=x_left, stop=x_right, num=10)
+            for x_goal in x_goal_list:
+                ran_theta = np.random.uniform(-0.25, 0.25)
+                task_list.append({'init_states': [0, 0, ran_theta, 0], 'control_goal': [x_goal, 0]})
+                task_list.append({'init_states': [0, 0, ran_theta, 0], 'control_goal': [x_goal, 0]})
+        return task_list
 

@@ -1,0 +1,104 @@
+GymParams:
+  RobotParams:
+    quad_type: 2d
+  TaskParams:
+    task_type: traj_tracking
+    norm_act_scale: 0.1
+    obs_goal_horizon: 0
+    rew_state_weight: 1.0
+    rew_act_weight: 0.0001
+    rew_exponential: true
+    done_on_out_of_bound: true
+    info_mse_metric_state_weight: null
+    normalized_rl_action_space: false
+    task_info:
+      stabilization_goal:
+        - 2
+        - 2
+        - 2.5
+      stabilization_goal_tolerance: 0.05
+      trajectory_type: circle
+      num_cycles: 1
+      trajectory_plane: zx
+      trajectory_position_offset:
+        - 0.5
+        - 0
+      trajectory_scale: -0.5
+      proj_point:
+        - 0
+        - 0
+        - 0.5
+      proj_normal:
+        - 0
+        - 1
+        - 1
+    cost_fn_type: rl_reward
+    ctrl_freq: 50
+    ini_states:
+      init_x: 0
+      init_x_dot: 0
+      init_z: 0
+      init_z_dot: 0
+      init_theta: 0
+      init_theta_dot: 0
+    init_state_randomization_info: null
+    prior_prop: null
+    inertial_prop: null
+    randomized_inertial_prop: false
+    inertial_prop_randomization_info: null
+    constraints: null
+    done_on_violation: false
+    use_constraint_penalty: false
+    constraint_penalty: -1.0
+    disturbances: null
+    adversary_disturbance: null
+    adversary_disturbance_offset: 0.0
+    adversary_disturbance_scale: 0.01
+    max_episode_steps: 500
+    evaluation_period: 10000
+    num_episodes_to_run: 1
+    task_reset_mode: random
+    change_dynamics: false
+    context_horizon: 10
+  SimulationParams:
+    record: false
+    gui: false
+    verbose: false
+    num_drones: 1
+    output_dir: null
+    seed: null
+    info_in_reset: true
+    pyb_freq: 50
+AgentParams:
+  agent_name: SAC
+  mode: train
+  soft_alpha: 0.005
+  learning_rate_actor: 0.0003
+  learning_rate_critic: 0.0003
+  batch_size: 128
+  target_network_frequency: 1
+  noise_clip: 0.5
+  entropy_alpha: 0.1
+  gamma_discount: 0.99
+  model_path: ''
+  total_training_steps: 500000
+  replay_buffer_size: 500000
+  learning_starts: 3000
+  policy_update_frequency: 1
+  use_layer_norm: false
+  actor_hidden_units:
+  - 256
+  - 256
+  critic_hidden_units:
+  - 256
+  - 256
+  actor_activation: relu
+  critic_activation: relu
+JobParams:
+  gpu: false
+  job_name: ''
+  run_mode: train
+  seed: 1
+  capture_video: false
+  output_path: ''
+  experiment_name: base
