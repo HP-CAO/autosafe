@@ -1,6 +1,6 @@
 import numpy as np
 import math
-
+# todo update with the model based design for quadrotor
 F = np.array([25.9995, 19.4241, 75.9886, 13.8553])
 
 MATRIX_P = np.array([[13.3425, 6.73778, 16.2166, 3.47318],
