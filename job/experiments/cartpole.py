@@ -27,11 +27,21 @@ def run(cfg: AllConfig) -> None:
     seed_everything(cfg.JobParams.seed)
     writer = SummaryWriter(os.path.join(cfg.JobParams.output_path, cfg.JobParams.job_name))
     env = CartPoleEnv(cfg.GymParams)
+    state_vector_shape = 4
+
 
     if cfg.JobParams.experiment_name == 'base':
         from job.interaction_methods.base import train
         observation_dim = env.observation_space.shape[0]
         agent = SACAgent(cfg.AgentParams, observation_dim, env.action_space.shape[0])
+        train(agent, env, writer, cfg)
+    elif cfg.JobParams.experiment_name == 'autosafe':
+        from job.interaction_methods.base import train
+        from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
+        from job.experiments.model_based_design_cartpole import MATRIX_P, F
+        observation_dim = env.observation_space.shape[0]
+        agent = AutoSafeSAC(cfg.AgentParams, observation_dim, env.action_space.shape[0],state_vector_shape,
+                            MATRIX_P, F, cfg.GymParams.RobotParams.action_mag)
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'multi_task':
         from job.interaction_methods.multi_task import train
@@ -56,8 +66,6 @@ def run(cfg: AllConfig) -> None:
         agent = SACAgent(cfg.AgentParams, observation_dim, env.action_space.shape[0])
         model_based_agent = ModelbasedAgent()
         train(agent, env, writer, cfg, model_based_agent, SYSTEM_A, SYSTEM_B)
-
-
 
 
 if __name__ == '__main__':
