@@ -1,4 +1,5 @@
 # todo update to auto_safe interaction
+import copy
 
 from agent.OffPolicyRL.ReplayBuffer_core import ReplayMemory
 from agent.utils import log_info, setup_logger
@@ -15,6 +16,7 @@ def train(agent, env, writer, cfg):
 
     while global_step < cfg.AgentParams.total_training_steps:
         obs, c_gt = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
+        tracking_error = env.state - env.control_goal_array
         episodic_return = []
 
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
@@ -22,15 +24,17 @@ def train(agent, env, writer, cfg):
             if global_step < cfg.AgentParams.learning_starts:
                 action = env.action_space.sample().squeeze()
             else:
-                action = agent.get_action(obs, mode='train').squeeze()
+                action = agent.get_action([obs, tracking_error], mode='train').squeeze()
 
             next_obs, rewards, terminations, truncations, infos = env.step(action)
+            next_tracking_error = env.state - env.control_goal_array
 
-            replay_mem.add([obs, action, rewards, next_obs, terminations])
+            replay_mem.add([obs, action, rewards, next_obs, terminations, tracking_error, next_tracking_error])
 
             obs = next_obs
             episodic_return.append(rewards)
             global_step += 1
+            tracking_error = copy.deepcopy(next_tracking_error)
 
             if global_step > cfg.AgentParams.learning_starts:
                 mini_batch = replay_mem.sample(cfg.AgentParams.batch_size)
@@ -70,8 +74,8 @@ def evaluate(agent, env, writer, cfg, global_step):
             episodic_return = []
 
             for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
-
-                action = agent.get_action(obs, mode='test').squeeze()
+                tracking_error = env.state - env.control_goal_array
+                action = agent.get_action([obs, tracking_error], mode='test').squeeze()
                 next_obs, r, terminations, truncations, infos = env.step(action)
                 obs = next_obs
                 episodic_return.append(r)

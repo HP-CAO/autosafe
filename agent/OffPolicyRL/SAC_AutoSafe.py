@@ -2,11 +2,12 @@ import os
 import tensorflow as tf
 import numpy as np
 from dataclasses import dataclass, field
-from tensorflow.keras.layers import Input, Dense, LayerNormalization
+from tensorflow.keras.layers import Input, Dense, LayerNormalization, Layer
 from tensorflow.keras import Model
 import tensorflow_probability as tfp
 
 tfd = tfp.distributions
+
 
 @dataclass
 class SACConfig:
@@ -26,15 +27,17 @@ class SACConfig:
     learning_starts: int = 3000
     policy_update_frequency: int = 1
     use_layer_norm: bool = False
-    
+
     # Network architecture configurations
-    actor_hidden_units:  list = field(default_factory=lambda: [256, 256])
+    actor_hidden_units: list = field(default_factory=lambda: [256, 256])
     critic_hidden_units: list = field(default_factory=lambda: [256, 256])
     actor_activation: str = 'relu'
     critic_activation: str = 'relu'
 
+
 LOG_STD_MAX = 2
 LOG_STD_MIN = -5
+
 
 def build_mlp(input_layer, hidden_units, activation, use_layer_norm=False):
     """Builds an MLP given a starting input layer."""
@@ -45,32 +48,67 @@ def build_mlp(input_layer, hidden_units, activation, use_layer_norm=False):
             x = LayerNormalization()(x)
     return x
 
-def build_actor(shape_input, shape_output, config: SACConfig, shape_state, P_matrix, F_matrix, action_magnitude, name=''):
-    input_layer = Input(shape=(shape_input,), name=name+'input', dtype=tf.float32)
-    state_input_layer = Input(shape=(shape_state), name=name+'state_input', dtype=tf.float32)
+# todo implement the AutoSafeActor class using subclass model.
+class AutoSafeActor(Model):
+    def __init__(self):
+        super(AutoSafeActor, self).__init__()
+        # self.input_layer = Input(shape=(None,), name='input', dtype=tf.float32)
+        # self.state_input_layer = Input(shape=(None, 1), name='state_input', dtype=tf.float32)
+        self.hidden_layers = build_mlp(self.input_layer, [256, 256], 'relu', use_layer_norm=True)
+        self.dense_layers_1 = Dense(256, activation='relu', name='dense_layers')
+
+        self.mean_layer = Dense(1, activation=None, name='mean')
+        self.log_std_layer = Dense(1, activation='tanh', name='std')
+        self.tem_T_layer = Dense(1, activation='sigmoid', name='lambda')
+        self.P_matrix = None  # Placeholder for P matrix
+        self.F_matrix = None  # Placeholder for F matrix
+        self.action_magnitude = None  # Placeholder for action magnitude
+        self.action_safe_layer = Dense(1, activation=None, name='safe_action')
+        self.ratio_layer = Dense(1, activation=None, name='ratio')
+    def call(self, inputs):
+        input_layer, state_input_layer = inputs
+        x = self.hidden_layers(input_layer)
+        mean = self.mean_layer(x)
+        log_std = self.log_std_layer(x)
+        log_std = LOG_STD_MIN + 0.5 * (LOG_STD_MAX - LOG_STD_MIN) * (log_std + 1)
+        tem_T = self.tem_T_layer(x) + 1e-6
+        state_input_transpose = tf.transpose(state_input_layer, perm=[0, 2, 1])
+        z = state_input_transpose @ P_matrix @ state_input_layer
+        ratio = (tf.exp(z / tem_T) - 1) / (tf.exp(1 / tem_T) - 1)
+        safe_action = F_matrix @ state_input_layer
+        safe_action = tf.squeeze(safe_action, axis=-1)  # shape: (batch_size, shape_output)
+        safe_action = safe_action / action_magnitude
+
+
+def build_actor(shape_input, shape_output, config: SACConfig, shape_state, P_matrix, F_matrix, action_magnitude,
+                name=''):
+    input_layer = Input(shape=(shape_input,), name=name + 'input', dtype=tf.float32)
+    state_input_layer = Input(shape=(shape_state, 1), name=name + 'state_input', dtype=tf.float32)
     # Build hidden layers
     x = build_mlp(input_layer, config.actor_hidden_units, config.actor_activation, use_layer_norm=config.use_layer_norm)
-    mean = Dense(shape_output, activation=None, name=name+'mean')(x)
-    log_std = Dense(shape_output, activation='tanh', name=name+'std')(x)
+    mean = Dense(shape_output, activation=None, name=name + 'mean')(x)
+    log_std = Dense(shape_output, activation='tanh', name=name + 'std')(x)
     # rescale log_std to [LOG_STD_MIN, LOG_STD_MAX]
     log_std = LOG_STD_MIN + 0.5 * (LOG_STD_MAX - LOG_STD_MIN) * (log_std + 1)
-    tem_T = Dense(1, activation='sigmoid', name=name+'lambda')(x) + 1e-6
-    state_input_aug = tf.expand_dims(state_input_layer, axis=-1)  # shape: (batch_size, state_shape, 1)
-    state_input_transpose = tf.transpose(state_input_aug, perm=[0, 2, 1])  # shape: (batch_size, 1, state_shape)
-    z = state_input_transpose @ P_matrix @ state_input_aug
-    ratio = (tf.exp(z/tem_T) - 1) / (tf.exp(1/ tem_T) - 1)
-    safe_action = F_matrix @ state_input_aug
+    tem_T = Dense(1, activation='sigmoid', name=name + 'lambda')(x) + 1e-6
+    state_input_transpose = Transpose()(state_input_layer)  # shape: (batch_size, 1, shape_state)
+    z = state_input_transpose @ P_matrix @ state_input_layer
+    ratio = (tf.exp(z / tem_T) - 1) / (tf.exp(1 / tem_T) - 1)
+    safe_action = F_matrix @ state_input_layer
     safe_action = tf.squeeze(safe_action, axis=-1)  # shape: (batch_size, shape_output)
     safe_action = safe_action / action_magnitude
     model = Model(inputs=input_layer, outputs=[mean, log_std, safe_action, ratio])
     return model
 
+
 def build_critic(shape_input, shape_output, config: SACConfig, name=''):
-    input_layer = Input(shape=(shape_input,), name=name+'input', dtype=tf.float32)
-    x = build_mlp(input_layer, config.critic_hidden_units, config.critic_activation, use_layer_norm=config.use_layer_norm)
-    q_value = Dense(shape_output, activation=None, name=name+'q_value')(x)
+    input_layer = Input(shape=(shape_input,), name=name + 'input', dtype=tf.float32)
+    x = build_mlp(input_layer, config.critic_hidden_units, config.critic_activation,
+                  use_layer_norm=config.use_layer_norm)
+    q_value = Dense(shape_output, activation=None, name=name + 'q_value')(x)
     model = Model(inputs=input_layer, outputs=q_value)
     return model
+
 
 @tf.function
 def get_action_logp(mean, log_std):
@@ -85,14 +123,17 @@ def get_action_logp(mean, log_std):
     log_prob = tf.reduce_sum(log_prob, axis=-1, keepdims=True)
     return action, log_prob
 
+
 class AutoSafeSAC:
-    def __init__(self, params: SACConfig, shape_observations, shape_action, shape_state, P_matrix, F_matrix, action_magnitude, mode='train'):
+    def __init__(self, params: SACConfig, shape_observations, shape_action, shape_state, P_matrix, F_matrix,
+                 action_magnitude, mode='train'):
         self.params = params
         self.shape_action = shape_action
         self.critic_update_step = 0
 
         # Build models
-        self.actor = build_actor(shape_observations, shape_action, params, shape_state, P_matrix, F_matrix, action_magnitude, name="actor_")
+        self.actor = build_actor(shape_observations, shape_action, params, shape_state, P_matrix, F_matrix,
+                                 action_magnitude, name="actor_")
         self.critic = build_critic(shape_observations + shape_action, 1, params, name="critic_")
         self.critic_target = build_critic(shape_observations + shape_action, 1, params, name="critic_target_")
         self.critic_2 = build_critic(shape_observations + shape_action, 1, params, name="critic_2_")
@@ -106,7 +147,7 @@ class AutoSafeSAC:
             self.load_weights(self.params.model_path, mode=mode)
         else:
             self.hard_update()
-        
+
         self.get_summary()
 
     def get_summary(self):
@@ -167,12 +208,12 @@ class AutoSafeSAC:
         return action.numpy()
 
     @tf.function
-    def _optimize_critic(self, ob1, a1, r1, ob2, ter):
+    def _optimize_critic(self, ob1, a1, r1, ob2, ter, track, track_next):
         mean_next, log_std_next, action_safe_next, ratio_next = self.actor(ob2)
         a_next, log_prob_next = get_action_logp(mean_next, log_std_next)
         fused_action_next = (1 - ratio_next) * a_next + ratio_next * action_safe_next
-        critic_target_input = tf.concat([ob2, fused_action_next], axis=-1)
-        critic_input = tf.concat([ob1, a1], axis=-1)
+        critic_target_input = tf.concat([ob2, track_next, fused_action_next], axis=-1)
+        critic_input = tf.concat([ob1, track, a1], axis=-1)
 
         q_e = self.critic_target(critic_target_input)
         q_e_2 = self.critic_2_target(critic_target_input)
@@ -195,18 +236,18 @@ class AutoSafeSAC:
         return critic_loss, critic_loss_2, q_e, q_e_2
 
     @tf.function
-    def _optimize_actor(self, ob1):
+    def _optimize_actor(self, ob1, tracking_error):
         with tf.GradientTape() as tape:
-            mean, log_std, safe_action, ratio = self.actor(ob1)
+            mean, log_std, safe_action, ratio = self.actor([ob1, tracking_error])
             rl_action, log_pi = get_action_logp(mean, log_std)
-            action = (1- ratio) * rl_action + ratio * safe_action
-            critic_input = tf.concat([ob1, action], axis=-1)
+            action = (1 - ratio) * rl_action + ratio * safe_action
+            critic_input = tf.concat([ob1, tracking_error, action], axis=-1)
             min_q_value = tf.minimum(self.critic(critic_input), self.critic_2(critic_input))
             actor_loss = tf.reduce_mean(self.params.entropy_alpha * log_pi - min_q_value)
         actor_gradients = tape.gradient(actor_loss, self.actor.trainable_variables)
         self.optimizer_actor.apply_gradients(zip(actor_gradients, self.actor.trainable_variables))
         return actor_loss, log_pi
-    
+
     def optimize(self, mini_batch):
         for i in range(len(mini_batch)):
             if len(mini_batch[i].shape) == 1:
@@ -217,13 +258,17 @@ class AutoSafeSAC:
         r1_tf = tf.convert_to_tensor(mini_batch[2], dtype=tf.float32)
         ob2_tf = tf.convert_to_tensor(mini_batch[3], dtype=tf.float32)
         ter_tf = tf.convert_to_tensor(mini_batch[4], dtype=tf.float32)
+        tracking_error_tf = tf.convert_to_tensor(mini_batch[5], dtype=tf.float32)
+        next_tracking_error_tf = tf.convert_to_tensor(mini_batch[6], dtype=tf.float32)
 
-        critic_loss, critic_loss_2, q_e, q_e_2 = self._optimize_critic(ob1_tf, a1_tf, r1_tf, ob2_tf, ter_tf)
+        critic_loss, critic_loss_2, q_e, q_e_2 = self._optimize_critic(ob1_tf, a1_tf, r1_tf, ob2_tf,
+                                                                       ter_tf, tracking_error_tf,
+                                                                       next_tracking_error_tf)
         self.critic_update_step += 1
         self.soft_update()
 
         if self.critic_update_step % self.params.policy_update_frequency == 0:
-            actor_loss, log_pi = self._optimize_actor(ob1_tf)
+            actor_loss, log_pi = self._optimize_actor(ob1_tf, tracking_error_tf)
         else:
             actor_loss = 0.0
             log_pi = 0.0
@@ -238,5 +283,3 @@ class AutoSafeSAC:
         }
 
         return training_info
-
-

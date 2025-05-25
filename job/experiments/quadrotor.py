@@ -30,28 +30,28 @@ def run(cfg: AllConfig) -> None:
     env = Quadrotor(cfg.GymParams)
 
     if cfg.JobParams.experiment_name == 'base':
-        from job.interaction_methods.base import train
+        from job.interactions.base import train
         observation_dim = env.observation_space.shape[0]
         agent = SACAgent(cfg.AgentParams, observation_dim, env.action_space.shape[0])
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'multi_task':
-        from job.interaction_methods.multi_task import train
+        from job.interactions.multi_task import train
         observation_dim = env.observation_space.shape[0] + len(env.control_goal)
         agent = SACAgent(cfg.AgentParams, observation_dim, env.action_space.shape[0])
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'model_based':
-        from job.interaction_methods.multi_task_model_based import evaluate
+        from job.interactions.multi_task_model_based import evaluate
         from job.experiments.model_based_design_quadrotor import ModelbasedAgent
         evaluate(ModelbasedAgent(), env, writer, cfg, 0)
     elif cfg.JobParams.experiment_name == 'multi_task_reg':
-        from job.interaction_methods.multi_task_reg import train
+        from job.interactions.multi_task_reg import train
         from job.experiments.model_based_design_quadrotor import ModelbasedAgent
         observation_dim = env.observation_space.shape[0] + len(env.control_goal)
         agent = SACAgent(cfg.AgentParams, observation_dim, env.action_space.shape[0])
         model_based_agent = ModelbasedAgent()
         train(agent, env, writer, cfg, model_based_agent, lamda=0.5)
     elif cfg.JobParams.experiment_name == 'multi_task_reg_apt':
-        from job.interaction_methods.multi_task_reg_adaptive import train
+        from job.interactions.multi_task_reg_adaptive import train
         from job.experiments.model_based_design_quadrotor import ModelbasedAgent, SYSTEM_A, SYSTEM_B
         observation_dim = env.observation_space.shape[0] + len(env.control_goal)
         agent = SACAgent(cfg.AgentParams, observation_dim, env.action_space.shape[0])

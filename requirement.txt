@@ -10,3 +10,4 @@ tf_keras
 matplotlib
 mujoco
 imageio
+scikit-learn
