@@ -3,7 +3,7 @@ import sys
 import hydra
 import dataclasses
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from gym_env.cartpole.cart_pole import CartPoleEnv, CartPoleGymConfig
 from job.job_config import JobConfig
@@ -20,14 +20,13 @@ class AllConfig:
     JobParams: JobConfig = dataclasses.field(default_factory=JobConfig)
 
 
-@hydra.main(version_base=None, config_path="../../config", config_name='SACCartpoleBase')
+@hydra.main(version_base=None, config_path="../config", config_name='CartpoleBase')
 def run(cfg: AllConfig) -> None:
     setup_environment(cfg)
     cfg.JobParams.output_path = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     seed_everything(cfg.JobParams.seed)
     writer = SummaryWriter(os.path.join(cfg.JobParams.output_path, cfg.JobParams.job_name))
     env = CartPoleEnv(cfg.GymParams)
-    state_vector_shape = 4
 
     if cfg.JobParams.experiment_name == 'base':
         from job.experiments.base import train
@@ -35,12 +34,12 @@ def run(cfg: AllConfig) -> None:
         agent = SACAgent(cfg.AgentParams, observation_dim, env.action_space.shape[0])
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'autosafe':
-        from job.experiments.base import train
+        from job.experiments.auto_safe import train
         from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
         from job.utils.model_based_design_cartpole import MATRIX_P, F
         observation_dim = env.observation_space.shape[0]
-        agent = AutoSafeSAC(cfg.AgentParams, observation_dim, env.action_space.shape[0], state_vector_shape,
-                            MATRIX_P, F, cfg.GymParams.RobotParams.action_mag)
+        n_s = MATRIX_P.shape[0]
+        agent = AutoSafeSAC(cfg.AgentParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F)
         train(agent, env, writer, cfg)
     else:
         print("Experiment name not recognized. Please check the configuration.")

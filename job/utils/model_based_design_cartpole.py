@@ -1,7 +1,8 @@
 import numpy as np
 import math
+ACTION_BOUND = 100.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
 
-F = np.array([25.9995, 19.4241, 75.9886, 13.8553])
+F = np.array([[25.9995, 19.4241, 75.9886, 13.8553]]) / ACTION_BOUND  # feedback law for the safe controller
 
 MATRIX_P = np.array([[13.3425, 6.73778, 16.2166, 3.47318],
                      [6.73778, 3.94828, 9.69035, 2.09032],
@@ -81,7 +82,6 @@ def get_init_condition_in_safety_envelope(n_points_per_dim=1):
                 initial_condition_list.append([s[0], s[1], s[2], s[3]])
 
     # print(f"Generating {len(initial_condition_list)} conditions for training ...")
-
     return initial_condition_list
 
 

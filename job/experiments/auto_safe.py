@@ -1,4 +1,3 @@
-# todo update to auto_safe interaction
 import copy
 
 from agent.OffPolicyRL.ReplayBuffer_core import ReplayMemory
@@ -16,25 +15,27 @@ def train(agent, env, writer, cfg):
 
     while global_step < cfg.AgentParams.total_training_steps:
         obs, c_gt = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
-        tracking_error = env.state - env.control_goal_array
         episodic_return = []
+        tracking_error = env.state - env.control_goal_array
+        obs_aug = np.append(obs, tracking_error)
 
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
             if global_step < cfg.AgentParams.learning_starts:
                 action = env.action_space.sample().squeeze()
             else:
-                action = agent.get_action([obs, tracking_error], mode='train').squeeze()
+                action = agent.get_action(obs_aug, mode='train').squeeze()
 
             next_obs, rewards, terminations, truncations, infos = env.step(action)
-            next_tracking_error = env.state - env.control_goal_array
 
-            replay_mem.add([obs, action, rewards, next_obs, terminations, tracking_error, next_tracking_error])
+            tracking_error = env.state - env.control_goal_array
+            next_obs_aug = np.append(next_obs, tracking_error)
 
-            obs = next_obs
+            replay_mem.add([obs_aug, action, rewards, next_obs_aug, terminations])
+
+            obs_aug = copy.deepcopy(next_obs_aug)
             episodic_return.append(rewards)
             global_step += 1
-            tracking_error = copy.deepcopy(next_tracking_error)
 
             if global_step > cfg.AgentParams.learning_starts:
                 mini_batch = replay_mem.sample(cfg.AgentParams.batch_size)
@@ -72,12 +73,15 @@ def evaluate(agent, env, writer, cfg, global_step):
         for _ in range(num_rollouts):
             obs, c_gt = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
             episodic_return = []
+            tracking_error = env.state - env.control_goal_array
+            obs_aug = np.append(obs, tracking_error)
 
             for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
-                tracking_error = env.state - env.control_goal_array
-                action = agent.get_action([obs, tracking_error], mode='test').squeeze()
+                action = agent.get_action(obs_aug, mode='test').squeeze()
                 next_obs, r, terminations, truncations, infos = env.step(action)
-                obs = next_obs
+                tracking_error = env.state - env.control_goal_array
+                next_obs_aug = np.append(next_obs, tracking_error)
+                obs_aug = copy.deepcopy(next_obs_aug)
                 episodic_return.append(r)
 
                 if terminations:

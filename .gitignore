@@ -71,7 +71,6 @@ video/
 train_process.*
 /.idea
 fig/
-scripts/
 test/
 
 *.mp4

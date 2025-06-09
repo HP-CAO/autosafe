@@ -35,8 +35,5 @@ def run(cfg: AllConfig) -> None:
         agent = SACAgent(cfg.AgentParams, observation_dim, env.action_space.shape[0])
         train(agent, env, writer, cfg)
 
-
-
-
 if __name__ == '__main__':
     run()

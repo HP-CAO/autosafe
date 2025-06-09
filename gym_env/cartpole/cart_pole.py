@@ -305,12 +305,13 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             if self.env_config.TaskParams.task_reset_mode == 'random':
                 ran_x = np.random.uniform(-0.8 * self.env_config.RobotParams.x_threshold,
                                           0.8 * self.env_config.RobotParams.x_threshold)
+
                 ran_v = 0
 
                 if self.env_config.TaskParams.task_type == 'swing_up':
                     ran_theta = np.random.normal(math.pi, 0.8) # for swing up task
                 else:
-                    ran_theta = np.random.uniform(-0.12, 0.12)  # for balancing task
+                    ran_theta = np.random.uniform(-0.05, 0.05)  # for balancing task
 
                 ran_theta_v = 0
 
