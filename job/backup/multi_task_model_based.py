@@ -16,6 +16,7 @@ def evaluate(agent, env, writer, cfg, global_step):
         env.control_goal = control_goal
         env.set_control_goal_array()
         episodic_return = []
+
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
             action = agent.get_action(tracking_error=env.state - env.control_goal_array).squeeze()
             action = (action / cfg.GymParams.RobotParams.action_mag).clip(-1, 1)

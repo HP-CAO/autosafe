@@ -1,8 +1,8 @@
 import numpy as np
 import math
-ACTION_BOUND = 100.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
+ACTION_BOUND = 20.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
 
-F = np.array([[25.9995, 19.4241, 75.9886, 13.8553]]) / ACTION_BOUND  # feedback law for the safe controller
+F = np.array([[25.9995, 19.4241, 75.9886, 13.8553]]) / ACTION_BOUND # feedback law for the safe controller
 
 MATRIX_P = np.array([[13.3425, 6.73778, 16.2166, 3.47318],
                      [6.73778, 3.94828, 9.69035, 2.09032],
@@ -86,12 +86,18 @@ def get_init_condition_in_safety_envelope(n_points_per_dim=1):
 
 
 class ModelbasedAgent:
-    def __init__(self, feedback_law=F):
+    def __init__(self, feedback_law=F, action_bound=ACTION_BOUND):
         self.feedback_law = feedback_law
 
+
     def get_action(self, tracking_error):
-        x, x_dot, theta, theta_dot = tracking_error
-        action_abs = F[0] * x + F[1] * x_dot + F[2] * theta + F[3] * theta_dot
+        # x, x_dot, theta, theta_dot = tracking_error
+        # F = np.squeeze(self.feedback_law)
+        # action_abs_1 = F[0] * x + F[1] * x_dot + F[2] * theta + F[3] * theta_dot
+        action_abs = np.dot(self.feedback_law, tracking_error)
+        # Normalize to [-1, 1] # the action bound is determined when calculating the feedback law
+        action_abs = np.clip(action_abs, -1, 1)
+        # print(f"action_abs: {action_abs}, tracking_error: {tracking_error}")
         return  action_abs
 
 

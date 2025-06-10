@@ -5,7 +5,7 @@ GymParams:
     gravity: 9.8
     mass_cart: 0.94
     mass_pole: 0.23
-    action_mag: 100
+    action_mag: 20
     length: 0.64
     friction_cart: 10.0
     friction_pole: 0.0011

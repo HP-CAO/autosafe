@@ -66,22 +66,23 @@ class AutoSafeActor(Model):
         self.n_s, _ = P_matrix.shape
 
     def call(self, inputs):
-        input_state = inputs[:, :self.n_s]  # Assuming the first n_s dimensions are the state
+        input_state = inputs[:, -self.n_s:]  # Assuming the first n_s dimensions are the state
         input_state_expand = tf.expand_dims(input_state, axis=1)
         x = self.feature_dense_1(inputs)
         x = self.feature_dense_2(x)
         x = self.feature_dense_3(x)
         action_mean_learn = self.mean_layer(x)  # Exclude the last dimension for action mean
-        tem = self.temperature_layer(x) + 1e-6  # Adding a small value to avoid division by zero
+        tem = self.temperature_layer(x) + 0.015  # Adding a small value to avoid division by zero # todo training yields nan, double check the optimization of temperature, the output of dense layer is already nan, very likely is the gradidents exploded
+        # tem = 0.015  # We found the value smaller than 0.012, leads to numerical instability
         log_std_learn = self.std_layer(x)
         log_std_learn = LOG_STD_MIN + 0.5 * (LOG_STD_MAX - LOG_STD_MIN) * (log_std_learn + 1)
         input_state_transpose = tf.transpose(input_state_expand, perm=[0, 2, 1])  # Transpose for matrix multiplication
-        action_safe = self.F_matrix @ input_state_transpose
+        action_safe =  tf.clip_by_value(self.F_matrix @ input_state_transpose, -1, 1)  # Clip the action to [-1, 1]
         action_safe = tf.squeeze(action_safe, axis=-1)  # Remove the extra dimension
         safe_z = input_state_expand @ self.P_matrix @ input_state_transpose
         safe_z = tf.squeeze(safe_z, axis=1)
         lam = tf.clip_by_value((tf.math.exp(safe_z / tem) - 1) / (tf.math.exp(1 / tem) - 1), 0, 1)
-        return action_mean_learn, log_std_learn, action_safe, lam
+        return action_mean_learn, log_std_learn, action_safe, lam, tem
 
 def build_actor(shape_input, shape_output, config: SACConfig, name=''):
     input_layer = Input(shape=(shape_input,), name=name+'input', dtype=tf.float32)
@@ -110,12 +111,12 @@ def get_action_logp(action_mean_learn, log_std_learn, action_safe, lam):
     normal = tfd.Normal(action_mean_learn, std)
     eps = tfd.Normal(loc=tf.zeros_like(std), scale=tf.ones_like(std)).sample()
     x_t = action_mean_learn + eps * std
-    action = tf.math.tanh(x_t)
+    action_drl = tf.math.tanh(x_t)
     log_prob = normal.log_prob(x_t)
     # log probability correction for tanh squashing
-    log_prob -= tf.math.log((1 - tf.math.pow(action, 2)) + 1e-5)
+    log_prob -= tf.math.log((1 - tf.math.pow(action_drl, 2)) + 1e-5)
     log_prob = tf.reduce_sum(log_prob, axis=-1, keepdims=True)
-    action = (1 - lam) * action_mean_learn + lam * action_safe   # todo double check the (1-lamda) on std
+    action = (1 - lam) * action_drl + lam * action_safe   # todo double check the (1-lamda) on std
     return action, log_prob
 
 @tf.function
@@ -190,7 +191,8 @@ class AutoSafeSAC:
     def get_action(self, observations,  mode='train'):
         if len(observations.shape) < 2:
             observations = tf.expand_dims(observations, 0)
-        action_mean_learn, log_std_learn, action_safe, lam= self.actor(observations)
+        action_mean_learn, log_std_learn, action_safe, lam , tem = self.actor(observations)
+        print(f"Lam: {lam.numpy()}, temperature: {tem.numpy()}")
         if mode == 'train':
             action, _ = get_action_logp(action_mean_learn, log_std_learn, action_safe, lam)
         elif mode == 'test':
@@ -198,11 +200,12 @@ class AutoSafeSAC:
             action = get_action_mean(action_mean_learn, action_safe, lam)
         else:
             raise NotImplementedError(f"{mode} is not implemented")
+
         return action.numpy()
 
     @tf.function
     def _optimize_critic(self, ob1, a1, r1, ob2, ter):
-        mean_next, log_std_next, action_safe, lam = self.actor(ob2)
+        mean_next, log_std_next, action_safe, lam, tem = self.actor(ob2)
         a_next, log_prob_next = get_action_logp(mean_next, log_std_next, action_safe, lam)
         critic_target_input = tf.concat([ob2, a_next], axis=-1)
 
@@ -231,7 +234,7 @@ class AutoSafeSAC:
     @tf.function
     def _optimize_actor(self, ob1):
         with tf.GradientTape() as tape:
-            mean, log_std, action_safe, lam = self.actor(ob1)
+            mean, log_std, action_safe, lam, tem = self.actor(ob1)
             action, log_pi = get_action_logp(mean, log_std, action_safe, lam )
             critic_input = tf.concat([ob1, action], axis=-1)
             min_q_value = tf.minimum(self.critic(critic_input), self.critic_2(critic_input))

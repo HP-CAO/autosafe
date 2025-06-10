@@ -41,6 +41,10 @@ def run(cfg: AllConfig) -> None:
         n_s = MATRIX_P.shape[0]
         agent = AutoSafeSAC(cfg.AgentParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F)
         train(agent, env, writer, cfg)
+    elif cfg.JobParams.experiment_name == 'safe':
+        from job.experiments.model_based_eval import evaluate
+        from job.utils.model_based_design_cartpole import ModelbasedAgent
+        evaluate(ModelbasedAgent(), env, writer, cfg, 0)
     else:
         print("Experiment name not recognized. Please check the configuration.")
 

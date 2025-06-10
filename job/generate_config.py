@@ -4,8 +4,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from omegaconf import OmegaConf
 import argparse
 
-from job.experiments.cartpole import AllConfig as SACCartpoleBase
-from job.experiments.quadrotor import AllConfig as SACQuadrotorBase
+from job.cartpole import AllConfig as SACCartpoleBase
+from job.quadrotor import AllConfig as SACQuadrotorBase
 
 ALL_JOBS = {
     # baselines

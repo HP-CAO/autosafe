@@ -1,4 +1,5 @@
 import copy
+import time
 
 from agent.OffPolicyRL.ReplayBuffer_core import ReplayMemory
 from agent.utils import log_info, setup_logger
@@ -21,10 +22,10 @@ def train(agent, env, writer, cfg):
 
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
-            if global_step < cfg.AgentParams.learning_starts:
-                action = env.action_space.sample().squeeze()
-            else:
-                action = agent.get_action(obs_aug, mode='train').squeeze()
+            # if global_step < cfg.AgentParams.learning_starts:  # in autosafe we don't need to use random action for exploration
+            #     action = env.action_space.sample().squeeze()
+            # else:
+            action = agent.get_action(obs_aug, mode='train').squeeze()
 
             next_obs, rewards, terminations, truncations, infos = env.step(action)
 
