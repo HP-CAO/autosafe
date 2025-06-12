@@ -60,7 +60,7 @@ class AutoSafeActor(Model):
 
         self.mean_layer = Dense(shape_action, activation=None, name='mean')
         self.std_layer = Dense(shape_action, activation='tanh', name='std')
-        self.temperature_layer = Dense(1, activation='sigmoid', name='temperature')
+        self.temperature_layer = Dense(1, activation='tanh', name='temperature') # [0, 1]
         self.P_matrix = P_matrix
         self.F_matrix = F_matrix
         self.n_s, _ = P_matrix.shape
@@ -72,7 +72,7 @@ class AutoSafeActor(Model):
         x = self.feature_dense_2(x)
         x = self.feature_dense_3(x)
         action_mean_learn = self.mean_layer(x)  # Exclude the last dimension for action mean
-        tem = self.temperature_layer(x) + 0.015  # Adding a small value to avoid division by zero # todo training yields nan, double check the optimization of temperature, the output of dense layer is already nan, very likely is the gradidents exploded
+        tem = 0.5 * (self.temperature_layer(x) + 1.08)  # Adding a small value to avoid division by zero # todo training yields nan, double check the optimization of temperature, the output of dense layer is already nan, very likely is the gradidents exploded
         # tem = 0.015  # We found the value smaller than 0.012, leads to numerical instability
         log_std_learn = self.std_layer(x)
         log_std_learn = LOG_STD_MIN + 0.5 * (LOG_STD_MAX - LOG_STD_MIN) * (log_std_learn + 1)
@@ -192,7 +192,7 @@ class AutoSafeSAC:
         if len(observations.shape) < 2:
             observations = tf.expand_dims(observations, 0)
         action_mean_learn, log_std_learn, action_safe, lam , tem = self.actor(observations)
-        print(f"Lam: {lam.numpy()}, temperature: {tem.numpy()}")
+        print(f"Lam: {lam.numpy()}, temperature: {tem}")
         if mode == 'train':
             action, _ = get_action_logp(action_mean_learn, log_std_learn, action_safe, lam)
         elif mode == 'test':

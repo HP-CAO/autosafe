@@ -36,7 +36,7 @@ def run(cfg: AllConfig) -> None:
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'autosafe':
         from job.experiments.base import train
-        from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
+        from agent.OffPolicyRL.SAC_AutoSafe_Vary import AutoSafeSAC
         from job.model_based_design_cartpole import MATRIX_P, F
         observation_dim = env.observation_space.shape[0]
         agent = AutoSafeSAC(cfg.AgentParams, observation_dim, env.action_space.shape[0], state_vector_shape,

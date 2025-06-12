@@ -275,7 +275,6 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         # truncated = bool(self._elapsed_steps >= self.env_config.TaskParams.max_episode_steps)
         truncated = None # we control the truncation in the interaction loop
         reward = self.reward_function(self.state, action)
-
         if self.render_mode == "human" and self.env_config.SimulationParams.enable_rendering:
             self.render()
 
@@ -461,6 +460,11 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         distance = np.linalg.norm(target_tip_position - pendulum_tip_position)
         distance_score = np.exp(-distance * distance_score_factor)
+
+        # if distance < 0.02:
+        #     distance_score = 1
+        # else:
+        #     distance_score = 0
 
         return distance_score
 

@@ -33,9 +33,17 @@ def run(cfg: AllConfig) -> None:
         observation_dim = env.observation_space.shape[0]
         agent = SACAgent(cfg.AgentParams, observation_dim, env.action_space.shape[0])
         train(agent, env, writer, cfg)
-    elif cfg.JobParams.experiment_name == 'autosafe':
-        from job.experiments.auto_safe import train
-        from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
+    elif cfg.JobParams.experiment_name == 'autosafe_const':
+        from job.experiments.auto_safe_const import train
+        from agent.OffPolicyRL.SAC_AutoSafe_Const import AutoSafeSAC
+        from job.utils.model_based_design_cartpole import MATRIX_P, F
+        observation_dim = env.observation_space.shape[0]
+        n_s = MATRIX_P.shape[0]
+        agent = AutoSafeSAC(cfg.AgentParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F)
+        train(agent, env, writer, cfg)
+    elif cfg.JobParams.experiment_name == 'autosafe_vary':
+        from job.experiments.auto_safe_vary import train
+        from agent.OffPolicyRL.SAC_AutoSafe_Vary import AutoSafeSAC
         from job.utils.model_based_design_cartpole import MATRIX_P, F
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
