@@ -17,7 +17,7 @@ def train(agent, env, writer, cfg):
     while global_step < cfg.AgentParams.total_training_steps:
         obs, c_gt = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
         episodic_return = []
-        tracking_error = env.state - env.control_goal_array
+        tracking_error = env.state - env.model_based_equilibrium
         obs_aug = np.append(obs, tracking_error)
 
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
@@ -29,7 +29,7 @@ def train(agent, env, writer, cfg):
 
             next_obs, rewards, terminations, truncations, infos = env.step(action)
 
-            tracking_error = env.state - env.control_goal_array
+            tracking_error = env.state - env.model_based_equilibrium
             next_obs_aug = np.append(next_obs, tracking_error)
 
             replay_mem.add([obs_aug, action, rewards, next_obs_aug, terminations])
@@ -74,13 +74,13 @@ def evaluate(agent, env, writer, cfg, global_step):
         for _ in range(num_rollouts):
             obs, c_gt = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
             episodic_return = []
-            tracking_error = env.state - env.control_goal_array
+            tracking_error = env.state - env.model_based_equilibrium
             obs_aug = np.append(obs, tracking_error)
 
             for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
                 action = agent.get_action(obs_aug, mode='test').squeeze()
                 next_obs, r, terminations, truncations, infos = env.step(action)
-                tracking_error = env.state - env.control_goal_array
+                tracking_error = env.state - env.model_based_equilibrium
                 next_obs_aug = np.append(next_obs, tracking_error)
                 obs_aug = copy.deepcopy(next_obs_aug)
                 episodic_return.append(r)

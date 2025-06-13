@@ -74,7 +74,7 @@ class AutoSafeActor(Model):
         x = self.feature_dense_3(x)
         action_mean_learn = self.mean_layer(x)  # Exclude the last dimension for action mean
         tem = self.temperature_layer_1(x)  # [0, 1]
-        tem = 0.5 * (self.temperature_layer_2(tem) + 1.1)  # Adding a small value to avoid division by zero # todo training yields nan, double check the optimization of temperature, the output of dense layer is already nan, very likely is the gradidents exploded
+        tem = 0.5 * (self.temperature_layer_2(tem) + 1.05)  # Shift the temperature output to [0.025, 1.025]
         # tem = 0.015  # We found the value smaller than 0.012, leads to numerical instability
         log_std_learn = self.std_layer(x)
         log_std_learn = LOG_STD_MIN + 0.5 * (LOG_STD_MAX - LOG_STD_MIN) * (log_std_learn + 1)

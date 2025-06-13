@@ -37,7 +37,8 @@ class TaskConfig:
     action_penalty: float = 0.01
     crash_penalty: float = 0
     ini_states: list = dataclasses.field(default_factory=lambda: [0.0, 0.0, math.pi, 0.0])
-    control_goal: list = dataclasses.field(default_factory=lambda: [0., 0.])  # position and angle
+    control_goal_x: float = 0.0  # x position of the control goal
+    control_goal_theta: float = 0.0  # angle of the control goal
     max_episode_steps: int = 500
     evaluation_period: int = 10000
     num_episodes_to_run: int = 10  # number of episodes to evaluate the agent or collect trajectories
@@ -199,8 +200,9 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         self.steps_beyond_terminated = None
         self._elapsed_steps = 0
-        self.control_goal = self.env_config.TaskParams.control_goal
-        self.control_goal_array = np.array([self.control_goal[0], 0, self.control_goal[1], 0])
+        self.control_goal = [self.env_config.TaskParams.control_goal_x, self.env_config.TaskParams.control_goal_theta]  # [x, theta]
+        # self.control_goal_array = np.array([self.control_goal[0], 0, self.control_goal[1], 0])
+        self.model_based_equilibrium = np.array([0, 0, 0, 0], dtype=np.float32)
 
     def step(self, action):
         assert self.action_space.contains(
@@ -302,8 +304,8 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             self.state = options['reset_state']
         else:
             if self.env_config.TaskParams.task_reset_mode == 'random':
-                ran_x = np.random.uniform(-0.2 * self.env_config.RobotParams.x_threshold,
-                                          0.2 * self.env_config.RobotParams.x_threshold) # todo debug mode
+                ran_x = np.random.uniform(-0.4* self.env_config.RobotParams.x_threshold,
+                                          0.4 * self.env_config.RobotParams.x_threshold) # todo debug mode
 
                 ran_v = 0
 
@@ -460,11 +462,6 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         distance = np.linalg.norm(target_tip_position - pendulum_tip_position)
         distance_score = np.exp(-distance * distance_score_factor)
-
-        # if distance < 0.02:
-        #     distance_score = 1
-        # else:
-        #     distance_score = 0
 
         return distance_score
 

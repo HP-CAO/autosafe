@@ -18,9 +18,8 @@ GymParams:
     - 0.0
     - 3.141592653589793
     - 0.0
-    control_goal:
-    - 0.0
-    - 0.0
+    control_goal_x: 0.0
+    control_goal_theta: 0.0
     max_episode_steps: 500
     evaluation_period: 10000
     num_episodes_to_run: 10
@@ -33,7 +32,7 @@ GymParams:
     random_reset_eval: false
     num_action_repeat: 20
     sim_time_step: 0.001
-    enable_rendering: true
+    enable_rendering: false
     kinematics_integrator: euler
     render_mode: human
 AgentParams:
@@ -48,8 +47,8 @@ AgentParams:
   entropy_alpha: 0.1
   gamma_discount: 0.99
   model_path: ''
-  total_training_steps: 100000
-  replay_buffer_size: 100000
+  total_training_steps: 500000
+  replay_buffer_size: 500000
   learning_starts: 128
   policy_update_frequency: 1
   use_layer_norm: false
@@ -62,7 +61,7 @@ AgentParams:
   actor_activation: relu
   critic_activation: relu
 JobParams:
-  gpu: true
+  gpu: false
   job_name: ''
   run_mode: train
   seed: 1
