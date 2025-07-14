@@ -67,9 +67,11 @@ def train(agent, env, writer, cfg):
 def evaluate(agent, env, writer, cfg, global_step):
     logger.info("Start evaluating the agent...")
     multi_rollout_return = []
+    multi_rollout_performance = []
     num_rollouts = 5
     for episode in range(cfg.GymParams.TaskParams.num_episodes_to_run):
         accumulated_r = []
+        accumulate_performance_score = []
 
         for _ in range(num_rollouts):
             obs, c_gt = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
@@ -80,6 +82,8 @@ def evaluate(agent, env, writer, cfg, global_step):
             for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
                 action = agent.get_action(obs_aug, mode='test').squeeze()
                 next_obs, r, terminations, truncations, infos = env.step(action)
+                performance_score = env.get_performance_score()
+                accumulate_performance_score.append(performance_score)
                 tracking_error = env.state - env.model_based_equilibrium
                 next_obs_aug = np.append(next_obs, tracking_error)
                 obs_aug = copy.deepcopy(next_obs_aug)
@@ -91,9 +95,14 @@ def evaluate(agent, env, writer, cfg, global_step):
             accumulated_r.append(sum(episodic_return))
 
         multi_rollout_return.append(np.mean(accumulated_r))
+        multi_rollout_performance.append(np.mean(accumulate_performance_score))
 
+    performance_mean = np.mean(multi_rollout_performance)
+    performance_std = np.std(multi_rollout_performance)
     return_mean = np.mean(multi_rollout_return)
     return_std = np.std(multi_rollout_return)
     returns_cv = return_std / return_mean  # coefficient of variation (dimensionless)
     writer.add_scalar("evaluation/episodic_return", return_mean, global_step)
     writer.add_scalar("evaluation/episodic_cv", returns_cv, global_step)
+    writer.add_scalar("evaluation/performance_mean", performance_mean, global_step)
+    writer.add_scalar("evaluation/performance_std", performance_std, global_step)

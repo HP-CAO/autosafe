@@ -14,6 +14,7 @@ import dataclasses
 from gymnasium import spaces
 from gymnasium.error import DependencyNotInstalled
 import matplotlib.pyplot as plt
+from job.utils.model_based_design_cartpole import MATRIX_P
 
 # We define the configuration classes to make the environment configurable using configuration files
 @dataclasses.dataclass
@@ -46,6 +47,7 @@ class TaskConfig:
     change_dynamics: bool = False
     context_horizon: int = 10
     task_type: str = 'swing_up'  # 'swing_up' or 'balance' or 'position-tracking'
+    reward_type: str = 'exp'  # 'exp' or 'split' or 'safety'
 
 
 @dataclasses.dataclass
@@ -203,6 +205,7 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         self.control_goal = [self.env_config.TaskParams.control_goal_x, self.env_config.TaskParams.control_goal_theta]  # [x, theta]
         # self.control_goal_array = np.array([self.control_goal[0], 0, self.control_goal[1], 0])
         self.model_based_equilibrium = np.array([0, 0, 0, 0], dtype=np.float32)
+        self.reward_function = self.get_reward_function()
 
     def step(self, action):
         assert self.action_space.contains(
@@ -283,7 +286,7 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         observations = np.array([x, x_dot, math.sin(theta), math.cos(theta), theta_dot])
         return np.array(observations, dtype=np.float32), reward, terminated, truncated, {}
 
-    def reward_function(self, state, action):
+    def reward_function_exp(self, state, action):
         x, x_dot, theta, theta_dot = state
         observations = np.array([x, x_dot, math.sin(theta), math.cos(theta), theta_dot])
         distance_score = self.get_distance_score(observations, self.control_goal)
@@ -291,6 +294,39 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         action_penalty = -1 * self.env_config.TaskParams.action_penalty * action * action
         r = distance_reward + action_penalty
         return r
+
+    def reward_function_split(self, state, action):
+        x, x_dot, theta, theta_dot = state
+        distance_x = abs(self.control_goal[0] - x)**2
+        distance_theta = abs(self.control_goal[1] - theta)**2
+        w_x = - 0.5
+        w_theta = - 0.5
+        distance_reward = w_x * distance_x + w_theta * distance_theta
+        action_reward = -1 * self.env_config.TaskParams.action_penalty * action * action
+        r = distance_reward + action_reward
+        return r
+
+    def reward_function_safety(self, state, action):
+        x, x_dot, theta, theta_dot = state
+        distance_x = abs(self.control_goal[0] - x)**2
+        distance_theta = abs(self.control_goal[1] - theta)**2
+        w_x = - 0.5
+        w_theta = - 0.5
+        distance_reward = w_x * distance_x + w_theta * distance_theta
+        action_reward = -1 * self.env_config.TaskParams.action_penalty * action * action
+        tracking_error = self.state - self.model_based_equilibrium
+        envelope_triggering_penalty = -1 if tracking_error @ MATRIX_P @ tracking_error > 1 else 0
+        r = distance_reward + action_reward + envelope_triggering_penalty
+        return r
+
+    def get_reward_function(self):
+        if self.env_config.TaskParams.reward_type == 'exp':
+            return self.reward_function_exp
+        elif self.env_config.TaskParams.reward_type == 'split':
+            return self.reward_function_split
+        elif self.env_config.TaskParams.reward_type == 'safety':
+            return self.reward_function_safety
+
 
     def reset(
             self,

@@ -6,6 +6,7 @@ from typing import Optional
 @dataclasses.dataclass
 class RobotConfig:
     quad_type: str = '2d'  # 1d | 2d | 3d
+    action_magnitude: int = 50
 
 
 @dataclasses.dataclass
@@ -22,11 +23,11 @@ class TaskConfig:
     # task
     task_info: dict = field(default_factory=lambda: ({"stabilization_goal": [2, 2, 2.5],
                                                       "stabilization_goal_tolerance": 0.05,
-                                                      'trajectory_type': 'circle',
-                                                      'num_cycles': 1,
-                                                      'trajectory_plane': 'zx',
-                                                      'trajectory_position_offset': [0.5, 0],
-                                                      'trajectory_scale': -0.5,
+                                                      'trajectory_type': 'figure8',
+                                                      'num_cycles': 2,
+                                                      'trajectory_plane': 'xyz',
+                                                      'trajectory_position_offset': [0, 0, 3],
+                                                      'trajectory_scale': 3.0,
                                                       'proj_point': [0, 0, 0.5],
                                                       'proj_normal': [0, 1, 1],
                                                       }))  # A dictionary with the information used to generate the task X and U references
@@ -35,7 +36,7 @@ class TaskConfig:
     # episode_len_sec: int = 5  # maximum episode duration in seconds
     # initialization
     ini_states: dict \
-        = field(default_factory=lambda: ({"init_x": 0, "init_x_dot": 0, "init_z": 0, "init_z_dot": 0, "init_theta": 0,
+        = field(default_factory=lambda: ({"init_x": -3, "init_x_dot": 0, "init_z": 1.0, "init_z_dot": 0, "init_theta": 0,
                                           "init_theta_dot": 0}))  # The initial state of the environment (z, z_dot) or (x, x_dot, z, z_dot theta, theta_dot)
     init_state_randomization_info: Optional[
         dict] = None  # A dictionary with information used to randomize the initial state.
@@ -62,7 +63,6 @@ class TaskConfig:
     task_reset_mode: str = 'random'  # "random reset"
     change_dynamics: bool = False #
     context_horizon: int = 10  ## todo rename to be observation horizon
-
 
 @dataclasses.dataclass
 class SimulationConfig:

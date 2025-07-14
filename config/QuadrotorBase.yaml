@@ -1,8 +1,9 @@
 GymParams:
   RobotParams:
-    quad_type: 2d
+    quad_type: 3d
+    action_magnitude: 50
   TaskParams:
-    task_type: traj_tracking
+    task_type: stabilization
     norm_act_scale: 0.1
     obs_goal_horizon: 0
     rew_state_weight: 1.0
@@ -13,9 +14,9 @@ GymParams:
     normalized_rl_action_space: false
     task_info:
       stabilization_goal:
-        - 2
-        - 2
-        - 2.5
+        - 1.5
+        - 1.5
+        - 1.5
       stabilization_goal_tolerance: 0.05
       trajectory_type: circle
       num_cycles: 1
@@ -35,9 +36,11 @@ GymParams:
     cost_fn_type: rl_reward
     ctrl_freq: 50
     ini_states:
-      init_x: 0
+      init_x: 2.5
       init_x_dot: 0
-      init_z: 0
+      init_y: 2.5
+      init_y_dot: 0
+      init_z: 2.5
       init_z_dot: 0
       init_theta: 0
       init_theta_dot: 0
@@ -54,7 +57,7 @@ GymParams:
     adversary_disturbance: null
     adversary_disturbance_offset: 0.0
     adversary_disturbance_scale: 0.01
-    max_episode_steps: 500
+    max_episode_steps: 1000
     evaluation_period: 10000
     num_episodes_to_run: 1
     task_reset_mode: random

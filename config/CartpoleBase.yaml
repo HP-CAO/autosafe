@@ -27,6 +27,7 @@ GymParams:
     change_dynamics: false
     context_horizon: 10
     task_type: balance
+    reward_type: exp
   SimulationParams:
     random_reset_train: true
     random_reset_eval: false

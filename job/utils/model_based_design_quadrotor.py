@@ -1,12 +1,24 @@
 import numpy as np
 import math
-# todo update with the model based design for quadrotor
-F = np.array([25.9995, 19.4241, 75.9886, 13.8553])
+ACTION_BOUND = 20.0 #todo double check action bound, to normalize the safe action space to [-1, 1], here we do it in the policy network due to the gravity compensation
 
-MATRIX_P = np.array([[13.3425, 6.73778, 16.2166, 3.47318],
-                     [6.73778, 3.94828, 9.69035, 2.09032],
-                     [16.2166, 9.69035, 25.9442, 5.31439],
-                     [3.47318, 2.09032, 5.31439, 1.16344]])
+F = np.array([[ 0.0248  ,  0.0438 ,   0.0247 ,   0.0437 ,  -0.1761 ,  -0.0279  , -0.3900  ,  0.3906  ,  0.6271   ,-0.0126  ,  0.0126  ,  0.0216] ,
+                       [-0.0248  , -0.0438 ,   0.0247 ,   0.0437 ,  -0.1761 ,  -0.0279  , -0.3900  , -0.3906  , -0.6271   ,-0.0126  , -0.0126  , -0.0216] ,
+                       [-0.0248  , -0.0438 ,  -0.0247 ,  -0.0437 ,  -0.1761 ,  -0.0279  ,  0.3900  , -0.3906  ,  0.6271   , 0.0126  , -0.0126  ,  0.0216] ,
+                       [ 0.0248  ,  0.0438 ,  -0.0247 ,  -0.0437 ,  -0.1761 ,  -0.0279  ,  0.3900  ,  0.3906  , -0.6271   , 0.0126  ,  0.0126  , -0.0216] ])  # feedback law for the safe controller
+
+MATRIX_P = np.array([[  0.1028 ,   0.1091 ,  -0.0000 ,  -0.0000 ,  -0.0000 ,  -0.0000 ,   0.0000  ,  0.4080 ,   0.0000 ,   0.0000 ,   0.0041,   -0.0000],
+                     [  0.1091 ,   0.1897 ,  -0.0000 ,  -0.0000 ,  -0.0000 ,   0.0000 ,   0.0000  ,  0.7117 ,   0.0000 ,   0.0000 ,   0.0071,   -0.0000],
+                     [ -0.0000 ,  -0.0000 ,   0.1028 ,   0.1091 ,   0.0000 ,   0.0000 ,  -0.4080  , -0.0000 ,   0.0000 ,  -0.0041 ,  -0.0000,   -0.0000],
+                     [ -0.0000 ,  -0.0000 ,   0.1091 ,   0.1897 ,   0.0000 ,   0.0000 ,  -0.7117  , -0.0000 ,   0.0000 ,  -0.0071 ,  -0.0000,   -0.0000],
+                     [ -0.0000 ,  -0.0000 ,   0.0000 ,   0.0000 ,   0.1874 ,   0.0109 ,  -0.0000  , -0.0000 ,   0.0000 ,   0.0000 ,  -0.0000,   -0.0000],
+                     [ -0.0000 ,   0.0000 ,   0.0000 ,   0.0000 ,   0.0109 ,   0.0043 ,  -0.0000  ,  0.0000 ,   0.0000 ,  -0.0000 ,  -0.0000,    0.0000],
+                     [  0.0000 ,   0.0000 ,  -0.4080 ,  -0.7117 ,  -0.0000 ,  -0.0000 ,   6.2021  ,  0.0000 ,  -0.0000 ,   0.0626 ,   0.0000,    0.0000],
+                     [  0.4080 ,   0.7117 ,  -0.0000 ,  -0.0000 ,  -0.0000 ,   0.0000 ,   0.0000  ,  6.2021 ,   0.0000 ,   0.0000 ,   0.0626,    0.0000],
+                     [  0.0000 ,   0.0000 ,   0.0000 ,   0.0000 ,   0.0000 ,   0.0000 ,  -0.0000  ,  0.0000 ,  19.9204 ,  -0.0000 ,   0.0000,    0.2012],
+                     [  0.0000 ,   0.0000 ,  -0.0041 ,  -0.0071 ,   0.0000 ,  -0.0000 ,   0.0626  ,  0.0000 ,  -0.0000 ,   0.0012 ,  -0.0000,    0.0000],
+                     [  0.0041 ,   0.0071 ,  -0.0000 ,  -0.0000 ,  -0.0000 ,  -0.0000 ,   0.0000  ,  0.0626 ,   0.0000 ,  -0.0000 ,   0.0012,   -0.0000],
+                     [ -0.0000 ,  -0.0000 ,  -0.0000 ,  -0.0000 ,  -0.0000 ,   0.0000 ,   0.0000  ,  0.0000 ,   0.2012 ,   0.0000 ,  -0.0000,    0.0040],])
 
 SAFE_CONTROLLER_STEP = 10  # think of distance|safe value based switching
 SAFE_CONTROLLER_ACTIVATE_THRESHOLD = 1.0
@@ -81,17 +93,17 @@ def get_init_condition_in_safety_envelope(n_points_per_dim=1):
                 initial_condition_list.append([s[0], s[1], s[2], s[3]])
 
     # print(f"Generating {len(initial_condition_list)} conditions for training ...")
-
     return initial_condition_list
 
 
 class ModelbasedAgent:
     def __init__(self, feedback_law=F):
         self.feedback_law = feedback_law
+        self.gravity_compensation = 0.25 * 0.027 * 9.8 # for each propeller
 
     def get_action(self, tracking_error):
-        x, x_dot, theta, theta_dot = tracking_error
-        action_abs = F[0] * x + F[1] * x_dot + F[2] * theta + F[3] * theta_dot
+        # tracking_error env state - env control goal
+        action_abs = self.feedback_law @ (tracking_error) + self.gravity_compensation
         return  action_abs
 
 

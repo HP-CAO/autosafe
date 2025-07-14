@@ -141,7 +141,7 @@ class Quadrotor(BaseAviary):
     TASK_INFO = {
         'stabilization_goal': [0, 1],
         'stabilization_goal_tolerance': 0.05,
-        'trajectory_type': 'circle',
+        'trajectory_type': 'circle',  # circle, square, figure8
         'num_cycles': 1,
         'trajectory_plane': 'zx',
         'trajectory_position_offset': [0.5, 0],
@@ -152,7 +152,6 @@ class Quadrotor(BaseAviary):
 
     def __init__(self, params: QuadrotorGymConfig):
 
-        self.step_in_episode = 0
         self.params = params
         self.QUAD_TYPE = QUAD_TYPES[self.params.RobotParams.quad_type]
 
@@ -162,6 +161,7 @@ class Quadrotor(BaseAviary):
         self.rew_act_weight = np.array(self.params.TaskParams.rew_act_weight, ndmin=1, dtype=float)
         self.rew_exponential = self.params.TaskParams.rew_exponential
         self.done_on_out_of_bound = self.params.TaskParams.done_on_out_of_bound
+        self.pybullet = p
 
         info_mse_metric_state_weight = self.params.TaskParams.info_mse_metric_state_weight
         ini_states = dict(self.params.TaskParams.ini_states)
@@ -258,6 +258,8 @@ class Quadrotor(BaseAviary):
                     self.TASK_INFO['stabilization_goal'][2], 0.0,
                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0
                 ])  # x = {x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p_body, q_body, r_body}.
+            self.model_based_equilibrium = self.X_GOAL
+
         elif self.TASK == Task.TRAJ_TRACKING:
             POS_REF, VEL_REF, _ = self._generate_trajectory(
                 traj_type=self.TASK_INFO['trajectory_type'],
@@ -417,6 +419,7 @@ class Quadrotor(BaseAviary):
         '''
 
         # Get the preprocessed rpm for each motor
+        action *= self.params.RobotParams.action_magnitude  # the action from drl or model-based is in [-1, 1]
         rpm = super().before_step(action)
         self.step_in_episode += 1
         # Determine disturbance force.

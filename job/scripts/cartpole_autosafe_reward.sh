@@ -1,0 +1,3 @@
+python job/cartpole.py JobParams.job_name=autosafe_cartpole_exp JobParams.experiment_name=autosafe GymParams.TaskParams.reward_type=exp &
+python job/cartpole.py JobParams.job_name=autosafe_cartpole_split JobParams.experiment_name=autosafe GymParams.TaskParams.reward_type=split &
+python job/cartpole.py JobParams.job_name=autosafe_cartpole_safety JobParams.experiment_name=autosafe GymParams.TaskParams.reward_type=safety
