@@ -8,6 +8,9 @@ import tensorflow_probability as tfp
 
 tfd = tfp.distributions
 
+LOG_STD_MAX = 2
+LOG_STD_MIN = -5
+
 @dataclass
 class SACConfig:
     agent_name: str = 'SAC'
@@ -33,8 +36,6 @@ class SACConfig:
     actor_activation: str = 'relu'
     critic_activation: str = 'relu'
 
-LOG_STD_MAX = 2
-LOG_STD_MIN = -5
 
 def build_mlp(input_layer, hidden_units, activation, use_layer_norm=False):
     """Builds an MLP given a starting input layer."""

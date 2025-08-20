@@ -10,13 +10,11 @@ from gym_env.quad_gym.env.env_config import AllSensors
 from gym_env.quad_gym.task.task_config import AllTasks
 
 from dataclasses import dataclass
-from dataclasses_json import dataclass_json
 from gym_env.quad_gym.task.task_config import TaskConfig
 from gym_env.quad_gym.env.env_config import SceneConfig, RobotConfig, SimConfig
 
 
 @dataclass
-@dataclass_json
 class GymConfig:
     SceneParams: SceneConfig = SceneConfig()
     RobotParams: RobotConfig = RobotConfig()

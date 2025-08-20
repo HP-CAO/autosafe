@@ -6,11 +6,15 @@ import argparse
 
 from job.cartpole import AllConfig as SACCartpoleBase
 from job.quadrotor import AllConfig as SACQuadrotorBase
+from job.biglucose import AllConfig as BiGlucoseBase
+from job.glucose import AllConfig as GlucoseBase
 
 ALL_JOBS = {
     # baselines
     "SACCartpoleBase": SACCartpoleBase,
     "SACQuadrotorBase": SACQuadrotorBase,
+    "BiGlucoseBase": BiGlucoseBase,
+    "GlucoseBase": GlucoseBase,
 }
 
 

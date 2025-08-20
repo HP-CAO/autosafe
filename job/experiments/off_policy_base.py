@@ -1,7 +1,4 @@
-import copy
-import time
-
-from agent.OffPolicyRL.ReplayBuffer_core import ReplayMemory
+from agent.OffPolicyRL.ReplayBuffer import ReplayMemory
 from agent.utils import log_info, setup_logger
 from tqdm import tqdm
 import numpy as np
@@ -15,26 +12,20 @@ def train(agent, env, writer, cfg):
     evaluate_flag = False
 
     while global_step < cfg.AgentParams.total_training_steps:
-        obs, c_gt = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
+        obs, _ = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
         episodic_return = []
-        tracking_error = env.state - env.model_based_equilibrium
-        obs_aug = np.append(obs, tracking_error)
 
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
-            # if global_step < cfg.AgentParams.learning_starts:  # in autosafe we don't need to use random action for exploration
-            #     action = env.action_space.sample().squeeze()
-            # else:
-            action = agent.get_action(obs_aug, mode='train').squeeze()
+            if global_step < cfg.AgentParams.learning_starts:
+                action = env.action_space.sample().squeeze()
+            else:
+                action = agent.get_action(obs, mode='train').squeeze()
 
             next_obs, rewards, terminations, truncations, infos = env.step(action)
+            replay_mem.add([obs, action, rewards, next_obs, terminations])
 
-            tracking_error = env.state - env.model_based_equilibrium
-            next_obs_aug = np.append(next_obs, tracking_error)
-
-            replay_mem.add([obs_aug, action, rewards, next_obs_aug, terminations])
-
-            obs_aug = copy.deepcopy(next_obs_aug)
+            obs = next_obs
             episodic_return.append(rewards)
             global_step += 1
 
@@ -58,36 +49,33 @@ def train(agent, env, writer, cfg):
 
         training_info['episodic_return'] = sum(episodic_return)
         training_info['episodic_length'] = len(episodic_return)
+        training_info['episodic_ave_return'] = np.mean(episodic_return)
         progress.update(training_info['episodic_length'])
         progress.set_description(f"Step: {global_step}, Return: {training_info['episodic_return']:.2f}")
         writer.add_scalar("training/episodic_return", training_info['episodic_return'], global_step)
         writer.add_scalar("training/episodic_length", training_info['episodic_length'], global_step)
+        writer.add_scalar("training/episodic_ave_return", training_info['episodic_ave_return'], global_step)
 
 
 def evaluate(agent, env, writer, cfg, global_step):
     logger.info("Start evaluating the agent...")
     multi_rollout_return = []
-    multi_rollout_performance = []
     num_rollouts = 5
+    all_steps = 0
     for episode in range(cfg.GymParams.TaskParams.num_episodes_to_run):
         accumulated_r = []
-        accumulate_performance_score = []
 
         for _ in range(num_rollouts):
             obs, c_gt = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
             episodic_return = []
-            tracking_error = env.state - env.model_based_equilibrium
-            obs_aug = np.append(obs, tracking_error)
 
             for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
-                action = agent.get_action(obs_aug, mode='test').squeeze()
+
+                action = agent.get_action(obs, mode='test').squeeze()
                 next_obs, r, terminations, truncations, infos = env.step(action)
-                performance_score = env.get_performance_score()
-                accumulate_performance_score.append(performance_score)
-                tracking_error = env.state - env.model_based_equilibrium
-                next_obs_aug = np.append(next_obs, tracking_error)
-                obs_aug = copy.deepcopy(next_obs_aug)
+                obs = next_obs
                 episodic_return.append(r)
+                all_steps += 1
 
                 if terminations:
                     break
@@ -95,14 +83,11 @@ def evaluate(agent, env, writer, cfg, global_step):
             accumulated_r.append(sum(episodic_return))
 
         multi_rollout_return.append(np.mean(accumulated_r))
-        multi_rollout_performance.append(np.mean(accumulate_performance_score))
 
-    performance_mean = np.mean(multi_rollout_performance)
-    performance_std = np.std(multi_rollout_performance)
     return_mean = np.mean(multi_rollout_return)
     return_std = np.std(multi_rollout_return)
+    normalized_return = return_mean / all_steps
     returns_cv = return_std / return_mean  # coefficient of variation (dimensionless)
     writer.add_scalar("evaluation/episodic_return", return_mean, global_step)
+    writer.add_scalar("evaluation/episodic_ave_return", normalized_return, global_step)
     writer.add_scalar("evaluation/episodic_cv", returns_cv, global_step)
-    writer.add_scalar("evaluation/performance_mean", performance_mean, global_step)
-    writer.add_scalar("evaluation/performance_std", performance_std, global_step)

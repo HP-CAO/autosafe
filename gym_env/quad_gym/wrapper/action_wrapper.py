@@ -3,8 +3,8 @@ import numpy as np
 import os
 import sys
 import inspect
-from envs.quad_gym.env.robots import a1
-from envs.quad_gym.wrapper.base_wrapper import BaseWrapper
+from gym_env.quad_gym.env.robots import a1
+from gym_env.quad_gym.wrapper.base_wrapper import BaseWrapper
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(os.path.dirname(currentdir))

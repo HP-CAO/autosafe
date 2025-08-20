@@ -16,7 +16,7 @@
 
 import gymnasium
 
-from envs.quad_gym.wrapper import utils as env_utils
+from gym_env.quad_gym.wrapper import utils as env_utils
 
 
 class ObservationDictionaryToArrayWrapper(gymnasium.Env):

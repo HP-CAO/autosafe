@@ -57,3 +57,20 @@ python job/experiments/cartpole.py --help
 ```shell
 tensorboard --logdir ./outputs/{FOLDER_NAME}
 ```
+
+
+### Todos
+
+- [x] Add BiGlucose and Glucose envs and test
+- [x] Add Quadruped 
+- [ ] Modify Quadruped to accommodate AutoSafe
+- [x] Add PPO algorithm baseline
+- [ ] Implement PP0 + AutoSafe
+
+- [ ] Implement CPO (model-free)
+- [ ] Implement Lyapunov-based Safe RL (model-free)
+- 
+- [ ] Implement AR-RL (model-based)
+- [ ] Implement Simplex (model-based)
+- [ ] Implement Residual (model-based)
+

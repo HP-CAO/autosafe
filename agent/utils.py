@@ -73,7 +73,7 @@ def setup_environment(cfg):
         physical_devices = tf.config.list_physical_devices('GPU')
         try:
             tf.config.experimental.set_memory_growth(physical_devices[0], True)
-            tf.config.optimizer.set_jit(True)  # Enable XLA
+            # tf.config.optimizer.set_jit(True)  # Enable XLA
         except Exception as e:
             exit(f"GPU allocation failed: {e}")
 

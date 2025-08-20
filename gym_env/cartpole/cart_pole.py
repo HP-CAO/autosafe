@@ -277,8 +277,7 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         self._elapsed_steps += 1
 
-        # truncated = bool(self._elapsed_steps >= self.env_config.TaskParams.max_episode_steps)
-        truncated = None # we control the truncation in the interaction loop
+        truncated = bool(self._elapsed_steps >= self.env_config.TaskParams.max_episode_steps)
         reward = self.reward_function(self.state, action)
         if self.render_mode == "human" and self.env_config.SimulationParams.enable_rendering:
             self.render()

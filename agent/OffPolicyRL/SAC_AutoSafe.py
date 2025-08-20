@@ -8,6 +8,8 @@ import tensorflow_probability as tfp
 
 tfd = tfp.distributions
 
+LOG_STD_MAX=2
+LOG_STD_MIN=-5
 
 @dataclass
 class SACConfig:
@@ -34,11 +36,6 @@ class SACConfig:
     actor_activation: str = 'relu'
     critic_activation: str = 'relu'
 
-
-LOG_STD_MAX = 2
-LOG_STD_MIN = -5
-
-
 def build_mlp(input_layer, hidden_units, activation, use_layer_norm=False):
     """Builds an MLP given a starting input layer."""
     x = input_layer
@@ -47,96 +44,6 @@ def build_mlp(input_layer, hidden_units, activation, use_layer_norm=False):
         if use_layer_norm:
             x = LayerNormalization()(x)
     return x
-
-
-class AutoSafeActor(Model):
-
-    def __init__(self, shape_action, P_matrix, F_matrix):
-        super(AutoSafeActor, self).__init__()
-
-        self.feature_dense_1 = Dense(256, activation='relu', name='feature_dense_1')
-        self.feature_dense_2 = Dense(256, activation='relu', name='feature_dense_2')
-        self.feature_dense_3 = Dense(256, activation='relu', name='feature_dense_3')
-
-        self.mean_layer = Dense(shape_action, activation=None, name='mean')
-        self.std_layer = Dense(shape_action, activation='tanh', name='std')
-        self.temperature_layer = Dense(1, activation='tanh', name='temperature') # [0, 1]  # Here temperature can be a learned vector for each action dimension
-        self.P_matrix = P_matrix
-        self.F_matrix = F_matrix
-        self.n_s, _ = P_matrix.shape
-        self.TEM_MIN = 1.0
-        self.TEM_MAX = 25.0
-
-
-    def call(self, inputs):
-        input_state = inputs[:, -self.n_s:]  # Assuming the first n_s dimensions are the state
-        input_state_expand = tf.expand_dims(input_state, axis=1)
-        x = self.feature_dense_1(inputs)
-        x = self.feature_dense_2(x)
-        x = self.feature_dense_3(x)
-        action_mean_learn = self.mean_layer(x)  # Exclude the last dimension for action mean
-        tem =self.temperature_layer(x)  # Adding a small value to avoid division by zero #
-        tem = self.TEM_MIN + 0.5 * (self.TEM_MAX - self.TEM_MIN) * (tem + 1)  # Rescale temperature to [TEM_MIN, TEM_MAX]
-        log_std_learn = self.std_layer(x)
-        log_std_learn = LOG_STD_MIN + 0.5 * (LOG_STD_MAX - LOG_STD_MIN) * (log_std_learn + 1)
-        input_state_transpose = tf.transpose(input_state_expand, perm=[0, 2, 1])  # Transpose for matrix multiplication
-        action_safe =  tf.clip_by_value(self.F_matrix @ input_state_transpose, -1, 1)  # Clip the action to [-1, 1]
-        action_safe = tf.squeeze(action_safe, axis=-1)  # Remove the extra dimension
-        safe_z = input_state_expand @ self.P_matrix @ input_state_transpose
-        safe_z = tf.squeeze(safe_z, axis=1)
-        lam = tf.clip_by_value((tf.math.exp(safe_z * tem) - 1) / (tf.math.exp(1 * tem) - 1), 0, 1)
-        return action_mean_learn, log_std_learn, action_safe, lam, tem
-
-
-class AutoSafeActorQuad(Model):
-
-    def __init__(self, shape_action, P_matrix, F_matrix):
-        super(AutoSafeActorQuad, self).__init__()
-
-        self.feature_dense_1 = Dense(256, activation='relu', name='feature_dense_1')
-        self.feature_dense_2 = Dense(256, activation='relu', name='feature_dense_2')
-        self.feature_dense_3 = Dense(256, activation='relu', name='feature_dense_3')
-
-        self.mean_layer = Dense(shape_action, activation=None, name='mean')
-        self.std_layer = Dense(shape_action, activation='tanh', name='std')
-        self.temperature_layer = Dense(1, activation='tanh', name='temperature') # [0, 1]  # Here temperature can be a learned vector for each action dimension
-        self.P_matrix = P_matrix
-        self.F_matrix = F_matrix
-        self.n_s, _ = P_matrix.shape
-        self.TEM_MIN = 1.0
-        self.TEM_MAX = 5.0  # todo check the temperature range for quadrotor to avoid numerical issues
-        self.action_mag = 50
-        self.gravity_compensation = 0.25 * 0.027 * 9.8   # Gravity constant for quadrotor dynamics
-
-    def call(self, inputs):
-        input_state = inputs[:, -self.n_s:]  # Assuming the first n_s dimensions are the state
-        input_state_expand = tf.expand_dims(input_state, axis=1)
-        x = self.feature_dense_1(inputs)
-        x = self.feature_dense_2(x)
-        x = self.feature_dense_3(x)
-        action_mean_learn = self.mean_layer(x)  # Exclude the last dimension for action mean
-        tem =self.temperature_layer(x)  # Adding a small value to avoid division by zero #
-        # tem = self.TEM_MIN + 0.5 * (self.TEM_MAX - self.TEM_MIN) * (tem + 1)  # Rescale temperature to [TEM_MIN, TEM_MAX]
-        log_std_learn = self.std_layer(x)
-        log_std_learn = LOG_STD_MIN + 0.5 * (LOG_STD_MAX - LOG_STD_MIN) * (log_std_learn + 1)
-        input_state_transpose = tf.transpose(input_state_expand, perm=[0, 2, 1])  # Transpose for matrix multiplication
-        action_safe =  tf.clip_by_value((self.F_matrix @ input_state_transpose + self.gravity_compensation) / self.action_mag, -1, 1)  # Clip the action to [-1, 1]
-        action_safe = tf.squeeze(action_safe, axis=-1)  # Remove the extra dimension
-        safe_z = input_state_expand @ self.P_matrix @ input_state_transpose
-        safe_z = tf.squeeze(safe_z, axis=1)
-        lam = tf.clip_by_value((tf.math.exp(safe_z * tem) - 1) / (tf.math.exp(1 * tem) - 1), 0, 1)
-        return action_mean_learn, log_std_learn, action_safe, lam, tem
-
-def build_actor(shape_input, shape_output, config: SACConfig, name=''):
-    input_layer = Input(shape=(shape_input,), name=name+'input', dtype=tf.float32)
-    # Build hidden layers
-    x = build_mlp(input_layer, config.actor_hidden_units, config.actor_activation, use_layer_norm=config.use_layer_norm)
-    mean = Dense(shape_output, activation=None, name=name+'mean')(x)
-    log_std = Dense(shape_output, activation='tanh', name=name+'std')(x)
-    # rescale log_std to [LOG_STD_MIN, LOG_STD_MAX]
-    log_std = LOG_STD_MIN + 0.5 * (LOG_STD_MAX - LOG_STD_MIN) * (log_std + 1)
-    model = Model(inputs=input_layer, outputs=[mean, log_std])
-    return model
 
 
 def build_critic(shape_input, shape_output, config: SACConfig, name=''):
@@ -159,13 +66,19 @@ def get_action_logp(action_mean_learn, log_std_learn, action_safe, lam):
     # log probability correction for tanh squashing
     log_prob -= tf.math.log((1 - tf.math.pow(action_drl, 2)) + 1e-5)
     log_prob = tf.reduce_sum(log_prob, axis=-1, keepdims=True)
-    action = (1 - lam) * action_drl + lam * action_safe   # todo double check the (1-lamda) on std
+    action = (1 - lam) * action_drl + lam * action_safe
+
+    # log_prob correction for the affine map a = (1-lam) * a_drl + a_safe
+    d = tf.cast(tf.shape(action_mean_learn)[-1], action_mean_learn.dtype)
+    log_abs_det = d * tf.math.log(tf.abs(1.0 - lam) + 1e-6)
+    log_prob = log_prob - log_abs_det
+
     return action, log_prob
 
 @tf.function
 def get_action_mean(action_mean_learn, action_safe, lam):
     action_mean_learn = tf.math.tanh(action_mean_learn)
-    action = (1 - lam) * action_mean_learn + lam * action_safe  # todo double check the (1-lamda) on std
+    action = (1 - lam) * action_mean_learn + lam * action_safe
     return action
 
 class AutoSafeSAC:
@@ -176,9 +89,12 @@ class AutoSafeSAC:
 
         # Build models
         if case == 'cartpole':
-            self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix)
+            from agent.AutoSafe import AutoSafeActor
+            self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
         else:
-            self.actor = AutoSafeActorQuad(shape_action, P_matrix, F_matrix)
+            from agent.AutoSafe import AutoSafeActorQuad
+            self.actor = AutoSafeActorQuad(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
+
         self.critic = build_critic(shape_observations + shape_action, 1, params, name="critic_")
         self.critic_target = build_critic(shape_observations + shape_action, 1, params, name="critic_target_")
         self.critic_2 = build_critic(shape_observations + shape_action, 1, params, name="critic_2_")

@@ -5,6 +5,7 @@ import random
 from collections import deque, defaultdict, namedtuple
 import tensorflow as tf
 
+
 def shape(exp):
     if type(exp) is list:
         return len(exp)
@@ -16,11 +17,13 @@ def shape(exp):
     else:
         return 1
 
+
 def type_of(exp):
     if type(exp) is bool:
         return bool
     else:
         return float
+
 
 class ReplayMemory:
     """
@@ -135,9 +138,12 @@ class ReplayMemory:
 
         print("Load memory caches, pre-filled replay memory!")
 
+
 """ Contextual Replay Memory """
+
+
 class ContextualReplayBuffer:
-    def __init__(self, buffer_size, context_horizon = 10, name='ContextualReplayMemory'):
+    def __init__(self, buffer_size, context_horizon=10, name='ContextualReplayMemory'):
         """
             Args:
                 buffer_size: int, size of the replay buffer of each context
@@ -157,26 +163,27 @@ class ContextualReplayBuffer:
             if np.allclose(context, c_gt, atol=1e-3):
                 return idx
         return None
-    
+
     def sample_context(self, num_contexts=2):
         # sample context from the context_dict
         if len(self.context_dict) < num_contexts:
             raise ValueError(f"Number of contexts in context_dict is less than {num_contexts}")
         idx = np.random.choice(list(self.context_dict.keys()), num_contexts, replace=False)
         return [self.context_dict[i] for i in idx]
-        
+
     def add(self, c_gt, experience):
         idx = self._context_exists(c_gt)
         if idx is not None:
             self.memory[idx].add(experience)
         else:
-            print(f'Adding new context {c_gt} to {self.name}') # if the context is not in the dictionary, add the context and create a new ReplayMemory
+            print(
+                f'Adding new context {c_gt} to {self.name}')  # if the context is not in the dictionary, add the context and create a new ReplayMemory
             idx = len(self.context_dict)
             self.context_dict[idx] = c_gt
             self.memory[idx] = ReplayMemory(self.buffer_size)
             self.memory[idx].add(experience)
             self.num_contexts += 1
-    
+
     def sample_rl_batch(self, batch_size, c_gt=None):
         # sample a batch of transitions from a context to train the RL agent
         if c_gt is None:
@@ -184,7 +191,7 @@ class ContextualReplayBuffer:
             idx = np.random.choice(list(self.context_dict.keys()))
         else:
             idx = self._context_exists(c_gt)
-            if idx is None: 
+            if idx is None:
                 raise ValueError(f"Context {c_gt} not found in context_dict")
         mem = self.memory[idx]
         if mem.k < batch_size:
@@ -198,7 +205,7 @@ class ContextualReplayBuffer:
             Data Batch = (stacked transitions from a context, context label)
             Args:
                 batch_size: int, size of the batch
-                mode: str, 'in_batch' or 'explicit_negatives'. If 'in_batch', mix the positive and negative samples in the same batch. 
+                mode: str, 'in_batch' or 'explicit_negatives'. If 'in_batch', mix the positive and negative samples in the same batch.
                                 If 'explicit_negatives', sample negative samples explicitly.
         """
         context_2use = self.sample_context(num_contexts=self.num_contexts)
@@ -213,7 +220,7 @@ class ContextualReplayBuffer:
             X = np.concatenate(X, axis=0)
             lbs = np.concatenate(lbs, axis=0)
             return (X, lbs)
-        
+
         elif mode == 'explicit_negatives':
             c_pos = context_2use[0]
             c_neg = context_2use[1:]
@@ -236,7 +243,7 @@ class ContextualReplayBuffer:
         # c_list = list(self.context_dict.values())
         # if len(c_list) - 1 == 0:
         #     raise ValueError("Only one context found in context_dict")
-        
+
         # X = []
         # lbs = []
         # ct = 0
@@ -250,7 +257,7 @@ class ContextualReplayBuffer:
         #     ct += 1
         #     if ct == num_neg:
         #         break
-        
+
         # num_neg = len(X)
 
         # # reshape to (batch_size, num_neg, feature_dim)
@@ -266,22 +273,22 @@ class ContextualReplayBuffer:
             idx = np.random.choice(list(self.context_dict.keys()))
         else:
             idx = self._context_exists(c_gt)
-            if idx is None: 
+            if idx is None:
                 raise ValueError(f"Context {c_gt} not found in context_dict")
         mem = self.memory[idx]
 
         data_batch = mem.sample(int(batch_size * num_transitions))
         X, Y = data_batch[0], data_batch[1]
-        Y_elem = Y[0,:]
+        Y_elem = Y[0, :]
         X_dim = X.shape[1]
-        X = X.reshape((batch_size, num_transitions * X_dim)) # stack the transitions
-        Y = np.tile(Y_elem, (batch_size, 1)) # repeat the context label
+        X = X.reshape((batch_size, num_transitions * X_dim))  # stack the transitions
+        Y = np.tile(Y_elem, (batch_size, 1))  # repeat the context label
         return (X, Y)
 
     def check_context(self, c1, c2):
         if np.linalg.norm(c1 - c2, ord=1) < self.sensitivity:
             return True
-        
+
     def create_copy(self, name):
         # Create a new instance of the ContextualReplayMemory with the same parameters
         new_copy = ContextualReplayBuffer(
@@ -289,26 +296,27 @@ class ContextualReplayBuffer:
             sensitivity=self.sensitivity,
             name=name
         )
-        
+
         # Deep copy the context_dict to ensure it is independent
         new_copy.context_dict = copy.deepcopy(self.context_dict)
-        
+
         # Deep copy the memory, ensuring each ReplayMemory instance is also deeply copied
         new_copy.memory = defaultdict(list, {
             idx: copy.deepcopy(replay_memory) for idx, replay_memory in self.memory.items()
         })
-        
+
         return new_copy
-    
+
     def save2file(self, file_path):
         with open(file_path, 'wb') as fp:
             pickle.dump(self.context_dict, fp)
             pickle.dump(self.memory, fp)
-    
+
     def load_memory_caches(self, path):
         with open(path, 'rb') as fp:
             self.context_dict = pickle.load(fp)
             self.memory = pickle.load(fp)
+
 
 class ContextSampler:
 
@@ -327,10 +335,12 @@ class ContextSampler:
         self.context_indices = list(context_dict.keys())
 
         # Initialize the rewards and priority dictionaries
-        self.rewards = {c: deque(maxlen=int(horizon)) for c in self.context_indices} # keep track of rewards for each context
-        self.priority = {c: 1/len(self.context_indices) for c in self.context_indices}  # start with UNIFORM distribution
-        self.temperature = temperature # higher temperature -> more uniform distribution
-        
+        self.rewards = {c: deque(maxlen=int(horizon)) for c in
+                        self.context_indices}  # keep track of rewards for each context
+        self.priority = {c: 1 / len(self.context_indices) for c in
+                         self.context_indices}  # start with UNIFORM distribution
+        self.temperature = temperature  # higher temperature -> more uniform distribution
+
         self.min_prob = 0.1
         self.max_prob = 0.9
 
@@ -348,15 +358,16 @@ class ContextSampler:
 
     def update_sampling_probabilities(self):
         # Calculate the average reward for each context
-        avg_rewards = {idx: np.mean(self.rewards[idx]) if len(self.rewards[idx]) > 0 else 1e-2 for idx in self.context_indices}
-        
+        avg_rewards = {idx: np.mean(self.rewards[idx]) if len(self.rewards[idx]) > 0 else 1e-2 for idx in
+                       self.context_indices}
+
         # NOTE: we want to prioritize contexts with LOW average rewards
         scaled_rewards = np.array([-avg_rewards[idx] for idx in self.context_indices]) / self.temperature
-        
+
         # Apply the softmax function
         exp_rewards = np.exp(scaled_rewards - np.max(scaled_rewards))  # subtract max for numerical stability
         sum_exp_rewards = np.sum(exp_rewards)
-        
+
         probs = exp_rewards / sum_exp_rewards
         min_prob = self.min_prob
         max_prob = self.max_prob
@@ -372,17 +383,17 @@ class ContextSampler:
         if self.logger:
             self.C_samples.append(c_sample[1])
         return c_sample
-    
+
     def _context_exists(self, c_gt):
         for idx, context in self.context_dict.items():
             if np.array_equal(context, c_gt):
                 return idx
         return None
-    
+
     def _samples_hist(self):
         hist = np.histogram(self.C_samples, bins=10)
         return hist
-    
+
     def reset(self):
         self.rewards = {c: deque(maxlen=int(self.horizon)) for c in self.context_indices}
-        self.priority = {c: 1/len(self.context_indices) for c in self.context_indices}
+        self.priority = {c: 1 / len(self.context_indices) for c in self.context_indices}

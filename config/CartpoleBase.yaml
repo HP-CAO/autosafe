@@ -36,7 +36,7 @@ GymParams:
     enable_rendering: false
     kinematics_integrator: euler
     render_mode: human
-AgentParams:
+SACParams:
   agent_name: SAC
   mode: train
   soft_alpha: 0.005
@@ -61,6 +61,32 @@ AgentParams:
   - 256
   actor_activation: relu
   critic_activation: relu
+PPOParams:
+  agent_name: PPO
+  mode: train
+  learning_rate_actor: 0.0003
+  learning_rate_critic: 0.0003
+  max_grad_norm_actor: 0.5
+  max_grad_norm_critic: 0.5
+  buffer_size: 2048
+  batch_size: 128
+  entropy_coef: 0.01
+  clip_range: 0.2
+  gamma_discount: 0.99
+  gae_lambda: 0.97
+  ppo_epochs: 5
+  model_path: ''
+  total_training_steps: 500000
+  use_layer_norm: false
+  target_kl: 0.01
+  actor_hidden_units:
+  - 256
+  - 256
+  critic_hidden_units:
+  - 256
+  - 256
+  actor_activation: relu
+  critic_activation: relu
 JobParams:
   gpu: false
   job_name: ''
@@ -68,4 +94,4 @@ JobParams:
   seed: 1
   capture_video: false
   output_path: ''
-  experiment_name: ''
+  experiment_name: 'base'
