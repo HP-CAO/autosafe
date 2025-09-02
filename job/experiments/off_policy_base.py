@@ -7,17 +7,17 @@ logger = setup_logger()
 def train(agent, env, writer, cfg):
     training_info = {}
     global_step = 0
-    replay_mem = ReplayMemory(size=cfg.AgentParams.replay_buffer_size)
-    progress = tqdm(total=cfg.AgentParams.total_training_steps)
+    replay_mem = ReplayMemory(size=cfg.SACParams.replay_buffer_size)
+    progress = tqdm(total=cfg.SACParams.total_training_steps)
     evaluate_flag = False
 
-    while global_step < cfg.AgentParams.total_training_steps:
+    while global_step < cfg.SACParams.total_training_steps:
         obs, _ = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
         episodic_return = []
 
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
-            if global_step < cfg.AgentParams.learning_starts:
+            if global_step < cfg.SACParams.learning_starts:
                 action = env.action_space.sample().squeeze()
             else:
                 action = agent.get_action(obs, mode='train').squeeze()
@@ -29,8 +29,8 @@ def train(agent, env, writer, cfg):
             episodic_return.append(rewards)
             global_step += 1
 
-            if global_step > cfg.AgentParams.learning_starts:
-                mini_batch = replay_mem.sample(cfg.AgentParams.batch_size)
+            if global_step > cfg.SACParams.learning_starts:
+                mini_batch = replay_mem.sample(cfg.SACParams.batch_size)
                 agent_info = agent.optimize(mini_batch)
                 log_info(writer, global_step, agent_info, 'agent', period=100)
 

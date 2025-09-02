@@ -1,3 +1,0 @@
-Wed Jan  8 20:40:15 2025
-WARNING: Inertia matrix is too close to singular at DOF 5. Check model. Time = 0.0000.
-

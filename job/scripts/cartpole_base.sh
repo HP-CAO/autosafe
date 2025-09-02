@@ -1,1 +1,1 @@
-python job/cartpole.py JobParams.job_name=sac_cartpole JobParams.experiment_name=base
+python job/cartpole.py JobParams.job_name=sac_cartpole JobParams.experiment_name=sac_base

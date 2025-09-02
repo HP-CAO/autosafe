@@ -1,3 +1,0 @@
-# Setup Mujoco Env
-
-## Dependencies

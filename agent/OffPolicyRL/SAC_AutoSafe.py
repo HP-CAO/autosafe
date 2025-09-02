@@ -72,7 +72,6 @@ def get_action_logp(action_mean_learn, log_std_learn, action_safe, lam):
     d = tf.cast(tf.shape(action_mean_learn)[-1], action_mean_learn.dtype)
     log_abs_det = d * tf.math.log(tf.abs(1.0 - lam) + 1e-6)
     log_prob = log_prob - log_abs_det
-
     return action, log_prob
 
 @tf.function

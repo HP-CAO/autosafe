@@ -2,6 +2,7 @@ import os
 import tensorflow as tf
 import numpy as np
 from dataclasses import dataclass, field
+
 from tensorflow.keras.layers import Input, Dense, LayerNormalization, Lambda
 from tensorflow.keras import Model
 import tensorflow_probability as tfp
@@ -196,9 +197,9 @@ class AutoSafePPO:
         log_prob -= tf.reduce_sum(tf.math.log(1 - tf.tanh(z) ** 2 + 1e-6), axis=-1)
 
         # log_prob correction for the affine map a = (1-lam) * a_drl + a_safe
-        # d = tf.cast(tf.shape(mean)[-1], mean.dtype)
-        # log_abs_det = d * tf.math.log(tf.abs(1.0 - lam) + 1e-6)
-        # log_prob = log_prob - log_abs_det
+        d = tf.cast(tf.shape(mean)[-1], mean.dtype)
+        log_abs_det = d * tf.math.log(tf.abs(1.0 - lam) + 1e-6)
+        log_prob = log_prob - log_abs_det
 
         return action[0], log_prob[0], self.critic(state)[0]
 
@@ -253,7 +254,7 @@ class AutoSafePPO:
         self.optimizer_critic.apply_gradients(zip(grads, self.critic.trainable_variables))
         return {'critic_loss': critic_loss}
 
-    @tf.function
+    # @tf.function
     def _optimize_actor(self, s_batch, a_batch, old_lp_batch, adv_batch):
         # todo stop gradient for old_lp_batch
         # todo reduce epochs
@@ -262,16 +263,17 @@ class AutoSafePPO:
             std = tf.exp(log_std)
             normal = tfd.Normal(mean, std)
 
+            print(a_batch)
             a_drl = (a_batch - lam * action_safe) / (1 - lam + 1e-6)
+            print(a_drl)
+            exit()
             a_drl = tf.clip_by_value(a_drl, -1.0 + 1e-6, 1.0 - 1e-6)
             z = tf.atanh(a_drl)
-
             log_probs = tf.reduce_sum(normal.log_prob(z), axis=-1)
             log_probs -= tf.reduce_sum(tf.math.log(1 - a_drl ** 2 + 1e-6), axis=-1)
-
-            # d = tf.cast(tf.shape(mean)[-1], mean.dtype)
-            # log_abs_det = d * tf.math.log(tf.abs(1.0 - lam) + 1e-6)
-            # log_probs = log_probs - log_abs_det
+            d = tf.cast(tf.shape(mean)[-1], mean.dtype)
+            log_abs_det = d * tf.math.log(tf.abs(1.0 - lam) + 1e-6)
+            log_probs = log_probs - log_abs_det
 
             ratio = tf.exp(log_probs - old_lp_batch)
             surr1 = ratio * adv_batch
