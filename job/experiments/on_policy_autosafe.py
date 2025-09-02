@@ -23,11 +23,11 @@ def train(agent, buffer, env, writer, cfg):
 
             buffer.store(
                 obs_aug,
-                action,
+                action.numpy(),
                 reward,
                 terminated,
-                log_prob,
-                value)
+                log_prob.numpy(),
+                value.numpy())
 
             episode_return.append(reward)
             global_step += 1
@@ -47,7 +47,7 @@ def train(agent, buffer, env, writer, cfg):
                 episode_return = []
 
             else:
-                obs_aug = copy.deepcopy(next_obs_aug)
+                obs_aug = next_obs_aug
 
             # Evaluate the agent
             if global_step % cfg.GymParams.TaskParams.evaluation_period == 0:

@@ -10,14 +10,15 @@ from job.job_config import JobConfig
 from agent.OffPolicyRL.SAC import SACAgent, SACConfig
 from agent.utils import seed_everything, setup_environment, setup_logger
 from tensorboardX import SummaryWriter
-
+from agent.OnPolicyRL.PPO import PPOConfig, PPOAgent, RolloutBuffer
 
 logger = setup_logger()
 
 @dataclasses.dataclass
 class AllConfig:
     GymParams: QuadrotorGymConfig = dataclasses.field(default_factory=QuadrotorGymConfig)
-    AgentParams: SACConfig = dataclasses.field(default_factory=SACConfig)
+    SACParams: SACConfig = dataclasses.field(default_factory=SACConfig)
+    PPOParams: PPOConfig = dataclasses.field(default_factory=PPOConfig)
     JobParams: JobConfig = dataclasses.field(default_factory=JobConfig)
 
 

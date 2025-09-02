@@ -35,7 +35,7 @@ class AutoSafeActor(Model):
         log_std_learn = self.std_layer(x)
         log_std_learn = self.log_std_min + 0.5 * (self.log_std_max - self.log_std_min) * (log_std_learn + 1)
         input_state_transpose = tf.transpose(input_state_expand, perm=[0, 2, 1])  # Transpose for matrix multiplication
-        action_safe =  tf.clip_by_value(self.F_matrix @ input_state_transpose, -1, 1)  # Clip the action to [-1, 1]
+        action_safe = tf.clip_by_value(self.F_matrix @ input_state_transpose, -1, 1)  # Clip the action to [-1, 1]
         action_safe = tf.squeeze(action_safe, axis=-1)  # Remove the extra dimension
         safe_z = input_state_expand @ self.P_matrix @ input_state_transpose
         safe_z = tf.squeeze(safe_z, axis=1)
@@ -62,6 +62,9 @@ class AutoSafeActorQuad(Model):
         self.TEM_MAX = 5.0
         self.action_mag = 50
         self.gravity_compensation = 0.25 * 0.027 * 9.8   # Gravity constant for quadrotor dynamics
+        self.log_std_max = LOG_STD_MAX
+        self.log_std_min = LOG_STD_MIN
+
 
     def call(self, inputs):
         input_state = inputs[:, -self.n_s:]  # Assuming the first n_s dimensions are the state
@@ -71,7 +74,7 @@ class AutoSafeActorQuad(Model):
         x = self.feature_dense_3(x)
         action_mean_learn = self.mean_layer(x)  # Exclude the last dimension for action mean
         tem = self.temperature_layer(x)  # Adding a small value to avoid division by zero #
-        # tem = self.TEM_MIN + 0.5 * (self.TEM_MAX - self.TEM_MIN) * (tem + 1)  # Rescale temperature to [TEM_MIN, TEM_MAX]
+        tem = self.TEM_MIN + 0.5 * (self.TEM_MAX - self.TEM_MIN) * (tem + 1)  # Rescale temperature to [TEM_MIN, TEM_MAX]
         log_std_learn = self.std_layer(x)
         log_std_learn = self.log_std_min + 0.5 * (self.log_std_max - self.log_std_min) * (log_std_learn + 1)
         input_state_transpose = tf.transpose(input_state_expand, perm=[0, 2, 1])  # Transpose for matrix multiplication
@@ -79,6 +82,5 @@ class AutoSafeActorQuad(Model):
         action_safe = tf.squeeze(action_safe, axis=-1)  # Remove the extra dimension
         safe_z = input_state_expand @ self.P_matrix @ input_state_transpose
         safe_z = tf.squeeze(safe_z, axis=1)
-        lam = tf.clip_by_value((tf.math.exp(safe_z * tem) - 1) / (tf.math.exp(1 * tem) - 1),
-                               0, 1.0)
+        lam = tf.clip_by_value((tf.math.exp(safe_z * tem) - 1) / (tf.math.exp(1 * tem) - 1), 0, 1.0)
         return action_mean_learn, log_std_learn, action_safe, lam, tem

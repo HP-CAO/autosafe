@@ -36,11 +36,11 @@ GymParams:
     cost_fn_type: rl_reward
     ctrl_freq: 50
     ini_states:
-      init_x: 2.5
+      init_x: 2.2
       init_x_dot: 0
-      init_y: 2.5
+      init_y: 2.2
       init_y_dot: 0
-      init_z: 2.5
+      init_z: 2.2
       init_z_dot: 0
       init_theta: 0
       init_theta_dot: 0
@@ -50,7 +50,7 @@ GymParams:
     randomized_inertial_prop: false
     inertial_prop_randomization_info: null
     constraints: null
-    done_on_violation: false
+    done_on_violation: true
     use_constraint_penalty: false
     constraint_penalty: -1.0
     disturbances: null
@@ -81,7 +81,7 @@ SACParams:
   batch_size: 128
   target_network_frequency: 1
   noise_clip: 0.5
-  entropy_alpha: 0.1
+  entropy_alpha: 0.05
   gamma_discount: 0.99
   model_path: ''
   total_training_steps: 500000

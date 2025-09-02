@@ -236,10 +236,10 @@ class PPOAgent:
                     metrics['entropy'].append(actor_metrics['entropy'])
                     metrics['kl_div'].append(actor_metrics['kl_div'])
 
-                    if np.mean(metrics['kl_div']) > self.params.target_kl * 1.5:
-                        early_stop = True
-                        print(f"Early stopping at epoch {epoch} with KL div {np.mean(metrics['kl_div'])}")
-                        break  # Exit batch loop
+                    # if np.mean(metrics['kl_div']) > self.params.target_kl * 1.5:
+                    #     early_stop = True
+                    #     print(f"Early stopping at epoch {epoch} with KL div {np.mean(metrics['kl_div'])}")
+                    #     break  # Exit batch loop
 
         # Average metrics over all mini-batches
         return {k: np.mean(v) for k, v in metrics.items()}

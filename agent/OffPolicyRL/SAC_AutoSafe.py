@@ -68,10 +68,11 @@ def get_action_logp(action_mean_learn, log_std_learn, action_safe, lam):
     log_prob = tf.reduce_sum(log_prob, axis=-1, keepdims=True)
     action = (1 - lam) * action_drl + lam * action_safe
 
+    # optionally correct the action affine map
     # log_prob correction for the affine map a = (1-lam) * a_drl + a_safe
-    d = tf.cast(tf.shape(action_mean_learn)[-1], action_mean_learn.dtype)
-    log_abs_det = d * tf.math.log(tf.abs(1.0 - lam) + 1e-6)
-    log_prob = log_prob - log_abs_det
+    # d = tf.cast(tf.shape(action_mean_learn)[-1], action_mean_learn.dtype)
+    # log_abs_det = d * tf.math.log(tf.abs(1.0 - lam) + 1e-6)
+    # log_prob = log_prob - log_abs_det
     return action, log_prob
 
 @tf.function

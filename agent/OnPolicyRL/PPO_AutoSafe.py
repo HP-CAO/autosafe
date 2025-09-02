@@ -184,24 +184,34 @@ class AutoSafePPO:
 
     @tf.function
     def get_action_and_log_prob(self, state):
+        # [B=1, ...]
+        eps = tf.constant(1e-6, dtype=tf.float32)
+
         state = tf.expand_dims(state, 0)
-        mean, log_std, action_safe, lam , tem  = self.actor(state)
+        mean, log_std, action_safe, lam, tem = self.actor(state)
 
         std = tf.exp(log_std)
         normal = tfd.Normal(mean, std)
+
+        # sample pre-tanh
         z = normal.sample()
-        action_drl = tf.tanh(z)
-        action = (1 - lam) * action_drl + lam * action_safe
+        a_drl = tf.tanh(z)
 
-        log_prob = normal.log_prob(z)
-        log_prob -= tf.reduce_sum(tf.math.log(1 - tf.tanh(z) ** 2 + 1e-6), axis=-1)
+        action = (1.0 - lam) * a_drl + lam * action_safe
+        lam = tf.clip_by_value(lam, 0.0, 1.0 - 1e-3)
+        # log prob of the *executed* action via change of variables
+        # Gaussian term (sum over dims)
+        log_p_z = tf.reduce_sum(normal.log_prob(z), axis=-1)  # shape [B]
 
-        # log_prob correction for the affine map a = (1-lam) * a_drl + a_safe
-        d = tf.cast(tf.shape(mean)[-1], mean.dtype)
-        log_abs_det = d * tf.math.log(tf.abs(1.0 - lam) + 1e-6)
-        log_prob = log_prob - log_abs_det
+        # tanh Jacobian (sum over dims)
+        log_det_tanh = tf.reduce_sum(tf.math.log(1.0 - a_drl ** 2 + eps), axis=-1)  # [B]
 
-        return action[0], log_prob[0], self.critic(state)[0]
+        # affine Jacobian: handle scalar or per-dim lam generically
+        # If lam is [B, D], sum_i log|1-lam_i| ; if [B, 1], this equals d*log|1-lam|
+        log_det_affine = tf.reduce_sum(tf.math.log(tf.abs(1.0 - lam) + eps), axis=-1)  # [B]
+
+        old_logp = log_p_z - log_det_tanh - log_det_affine  # [B]
+        return tf.squeeze(action, 0), tf.squeeze(old_logp, 0), tf.squeeze(self.critic(state), 0)
 
 
     def optimize(self, buffer, last_value=0.0):
@@ -236,10 +246,10 @@ class AutoSafePPO:
                     metrics['entropy'].append(actor_metrics['entropy'])
                     metrics['kl_div'].append(actor_metrics['kl_div'])
 
-                    if np.mean(metrics['kl_div']) > self.params.target_kl * 1.5:
-                        early_stop = True
-                        print(f"Early stopping at epoch {epoch} with KL div {np.mean(metrics['kl_div'])}")
-                        break  # Exit batch loop
+                    # if np.mean(metrics['kl_div']) > self.params.target_kl * 1.5:
+                    #     early_stop = True
+                    #     print(f"Early stopping at epoch {epoch} with KL div {np.mean(metrics['kl_div'])}")
+                    #     break  # Exit batch loop
 
         # Average metrics over all mini-batches
         return {k: np.mean(v) for k, v in metrics.items()}
@@ -258,32 +268,71 @@ class AutoSafePPO:
     def _optimize_actor(self, s_batch, a_batch, old_lp_batch, adv_batch):
         # todo stop gradient for old_lp_batch
         # todo reduce epochs
+        # with (tf.GradientTape() as tape):
+        #     mean, log_std, action_safe, lam, tem = self.actor(s_batch)
+        #     std = tf.exp(log_std)
+        #     normal = tfd.Normal(mean, std)
+        #     a_drl = (a_batch - lam * action_safe) / (1 - lam + 1e-6)
+        #     a_drl = tf.clip_by_value(a_drl, -1.0 + 1e-6, 1.0 - 1e-6)
+        #     z = tf.atanh(a_drl)
+        #     log_probs = tf.reduce_sum(normal.log_prob(z), axis=-1)
+        #     log_probs -= tf.reduce_sum(tf.math.log(1 - a_drl ** 2 + 1e-6), axis=-1)
+        #
+        #     # d = tf.cast(tf.shape(mean)[-1], mean.dtype)
+        #     # log_abs_det = d * tf.math.log(tf.abs(1.0 - lam) + 1e-6)
+        #     # log_probs = log_probs - log_abs_det
+        #
+        #     ratio = tf.exp(log_probs - old_lp_batch)
+        #     surr1 = ratio * adv_batch
+        #     surr2 = tf.clip_by_value(ratio, 1 - self.params.clip_range, 1 + self.params.clip_range) * adv_batch
+        #     actor_loss = -tf.reduce_mean(tf.minimum(surr1, surr2))
+        #
+        #     # Add entropy regularization
+        #     entropy = tf.reduce_mean(normal.entropy())
+        #     actor_loss -= self.params.entropy_coef * entropy
+        #
+        #     kl_div_samplewise = old_lp_batch - log_probs
+        #     kl_div = tf.reduce_mean(kl_div_samplewise)
+
         with tf.GradientTape() as tape:
-            mean, log_std, action_safe, lam, tem  = self.actor(s_batch)
+            mean, log_std, action_safe, lam, tem = self.actor(s_batch)  # current policy outputs
             std = tf.exp(log_std)
             normal = tfd.Normal(mean, std)
 
-            print(a_batch)
-            a_drl = (a_batch - lam * action_safe) / (1 - lam + 1e-6)
-            print(a_drl)
-            exit()
-            a_drl = tf.clip_by_value(a_drl, -1.0 + 1e-6, 1.0 - 1e-6)
-            z = tf.atanh(a_drl)
-            log_probs = tf.reduce_sum(normal.log_prob(z), axis=-1)
-            log_probs -= tf.reduce_sum(tf.math.log(1 - a_drl ** 2 + 1e-6), axis=-1)
+            eps = 1e-6
             d = tf.cast(tf.shape(mean)[-1], mean.dtype)
-            log_abs_det = d * tf.math.log(tf.abs(1.0 - lam) + 1e-6)
-            log_probs = log_probs - log_abs_det
 
+            # Invert the current mapping to get a_drl that would produce the *stored* physical action a_batch
+            lam = tf.clip_by_value(lam, 0.0, 1.0 - 1e-3)  # keep away from 1
+            scale = (1.0 - lam)
+            a_drl = (a_batch - lam * action_safe) / (scale + eps)
+            a_drl = tf.clip_by_value(a_drl, -1.0 + 1e-6, 1.0 - 1e-6)
+
+            # Squash inverse
+            z = tf.atanh(a_drl)
+
+            # Log prob with full change-of-variables: tanh + affine
+            log_p_z = tf.reduce_sum(normal.log_prob(z), axis=-1)  # sum over action dims
+            log_det_tanh = tf.reduce_sum(tf.math.log(1.0 - a_drl ** 2 + eps), axis=-1)
+            log_det_affine = d * tf.math.log(tf.abs(scale) + eps)
+            log_probs = log_p_z - log_det_tanh - log_det_affine
+            print(log_probs)
+            print(old_lp_batch)
+            # PPO ratio
+            # ratio = tf.exp(tf.clip_by_value(log_probs - old_lp_batch, -20.0, 20.0))
             ratio = tf.exp(log_probs - old_lp_batch)
+            print(ratio)
             surr1 = ratio * adv_batch
             surr2 = tf.clip_by_value(ratio, 1 - self.params.clip_range, 1 + self.params.clip_range) * adv_batch
             actor_loss = -tf.reduce_mean(tf.minimum(surr1, surr2))
 
-            # Add entropy regularization
-            entropy = tf.reduce_mean(normal.entropy())
+            # (Optional) better entropy proxy: include expected Jacobian terms
+            entropy_z = tf.reduce_mean(normal.entropy())
+            # crude action-entropy proxy
+            entropy = entropy_z + tf.reduce_mean(log_det_affine) + tf.reduce_mean(log_det_tanh)
             actor_loss -= self.params.entropy_coef * entropy
 
+            # Sampled KL (old || new): must be consistent with how old_lp_batch was computed
             kl_div_samplewise = old_lp_batch - log_probs
             kl_div = tf.reduce_mean(kl_div_samplewise)
 

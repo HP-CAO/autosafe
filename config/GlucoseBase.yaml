@@ -75,4 +75,4 @@ JobParams:
   seed: 1
   capture_video: false
   output_path: ''
-  experiment_name: base
+  experiment_name: sac_base
