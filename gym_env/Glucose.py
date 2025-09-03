@@ -117,7 +117,11 @@ class Glucose(gym.Env):
         model.set_rhs('I', dI)
         model.setup()
 
+
         self.init_state = np.array([self.Gb, 0., self.Ib], dtype=np.float32)
+        self.model_based_equilibrium = np.array([self.Gb, 0., self.Ib], dtype=np.float32) # double check
+
+        # linear_model_matrix = model.get_linear_system_matrices(xss=self.model_based_equilibrium, uss=np.array([0]))
 
         simulator = do_mpc.simulator.Simulator(model)
         simulator.set_param(t_step=dt)
@@ -135,6 +139,7 @@ class Glucose(gym.Env):
         self.action_high = np.array([2.0])
         self.action_bias = 0.5 * (self.action_high + self.action_low)
         self.action_scale = 0.5 * (self.action_high - self.action_low)
+        self.risk_list = []
 
     def reset(self, seed: Optional[int] = 0, options=None) -> Union[np.ndarray, Dict]:
         super().reset(seed=seed)
@@ -150,6 +155,7 @@ class Glucose(gym.Env):
 
         self.traj_obs = [glucose]
         self.traj_act = []
+        self.risk_list = []
         return obs, {"state": self.state, "meas": np.array([glucose])}
 
     def step(self, action: np.ndarray) -> Union[np.ndarray, float, bool, bool, Dict]:
@@ -163,10 +169,16 @@ class Glucose(gym.Env):
         term = (G < 10) or (G > 1000)
         trun = True if self.time_step >= self.max_steps else False
         # Magni risk function https://proceedings.mlr.press/v126/fox20a/fox20a.pdf
+
+        risk_score = -1 * (3.35506 * (math.log(G) ** 0.8353 - 3.7932)) ** 2
+
+        self.risk_list.append(risk_score)
+
         if term:
             reward = -1e3
         else:
-            reward = -1 * (3.35506 * (math.log(G) ** 0.8353 - 3.7932)) ** 2
+            reward = risk_score
+
 
         if u >= 0.1:
             reward -= self.action_penalty
@@ -204,6 +216,11 @@ class Glucose(gym.Env):
         plt.suptitle('Glucose Simulation')
         fig.tight_layout()
         return fig
+
+
+    def get_performance_score(self):
+        # calculate average risk
+        return np.mean(self.risk_list)
 
 
     def render(self):

@@ -91,9 +91,14 @@ class AutoSafeSAC:
         if case == 'cartpole':
             from agent.AutoSafe import AutoSafeActor
             self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
-        else:
+        elif case == 'quadrotor':
             from agent.AutoSafe import AutoSafeActorQuad
             self.actor = AutoSafeActorQuad(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
+        elif case == 'glucose':
+            from agent.AutoSafe import AutoSafeActorGlucose
+            self.actor = AutoSafeActorGlucose(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
+        else:
+            raise NotImplementedError
 
         self.critic = build_critic(shape_observations + shape_action, 1, params, name="critic_")
         self.critic_target = build_critic(shape_observations + shape_action, 1, params, name="critic_target_")

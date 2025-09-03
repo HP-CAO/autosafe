@@ -51,7 +51,7 @@ def run(cfg: AllConfig) -> None:
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s,
-                            env.action_space.shape[0], MATRIX_P, F)
+                            env.action_space.shape[0], MATRIX_P, F, case='cartpole')
         train(agent, env, writer, cfg)
 
     elif cfg.JobParams.experiment_name == 'ppo_autosafe':
@@ -61,7 +61,7 @@ def run(cfg: AllConfig) -> None:
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         agent = AutoSafePPO(cfg.PPOParams, observation_dim + n_s,
-                            env.action_space.shape[0], MATRIX_P, F)
+                            env.action_space.shape[0], MATRIX_P, F, case='cartpole')
         buffer = RolloutBuffer(cfg.PPOParams.buffer_size, cfg.PPOParams.batch_size, observation_dim + n_s,
                                env.action_space.shape[0])
         train(agent, buffer, env, writer, cfg)

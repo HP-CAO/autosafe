@@ -1,0 +1,38 @@
+GymParams:
+  RobotParams:
+    x_threshold: 0.5
+    theta_dot_threshold: 15.0
+    gravity: 9.8
+    mass_cart: 0.94
+    mass_pole: 0.23
+    action_mag: 20
+    length: 0.64
+    friction_cart: 10.0
+    friction_pole: 0.0011
+    with_friction: true
+  TaskParams:
+    action_penalty: 0.01
+    crash_penalty: 0.0
+    ini_states:
+    - 0.0
+    - 0.0
+    - 3.141592653589793
+    - 0.0
+    control_goal_x: 0.0
+    control_goal_theta: 0.0
+    max_episode_steps: 500
+    evaluation_period: 10000
+    num_episodes_to_run: 10
+    task_reset_mode: random
+    change_dynamics: false
+    context_horizon: 10
+    task_type: balance
+    reward_type: exp
+  SimulationParams:
+    random_reset_train: true
+    random_reset_eval: false
+    num_action_repeat: 20
+    sim_time_step: 0.001
+    enable_rendering: false
+    kinematics_integrator: euler
+    render_mode: human

@@ -368,7 +368,6 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         x, x_dot, theta, theta_dot = self.state
         observations = np.array([x, x_dot, math.sin(theta), math.cos(theta), theta_dot])
-
         return np.array(observations, dtype=np.float32), context_vector
 
     def render(self):

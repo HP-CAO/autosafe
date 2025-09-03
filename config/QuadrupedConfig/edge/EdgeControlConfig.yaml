@@ -1,0 +1,86 @@
+RedisParams:
+  servers:
+    port: '6379'
+    password: ippc123456
+    host_ip: 10.162.12.223
+    name: cloud
+  ch_edge_control:
+    server_name: cloud
+    channel_name: ch_plant_control
+  ch_plant_trajectory_segment:
+    server_name: cloud
+    channel_name: ch_plant_trajectory_segment
+  ch_edge_weights:
+    server_name: cloud
+    channel_name: ch_edge_weights
+  ch_edge_ready_update:
+    server_name: cloud
+    channel_name: ch_edge_ready_update
+  ch_plant_reset:
+    server_name: cloud
+    channel_name: ch_plant_reset
+  ch_edge_mode:
+    server_name: cloud
+    channel_name: ch_edge_mode
+  ch_edge_trajectory:
+    server_name: cloud
+    channel_name: ch_edge_trajectory
+  ch_training_steps:
+    server_name: cloud
+    channel_name: ch_training_steps
+  ch_edge_patch_update:
+    server_name: cloud
+    channel_name: ch_edge_patch_update
+  ch_edge_patch_gain:
+    server_name: cloud
+    channel_name: ch_edge_patch_gain
+SACParams:
+  agent_name: SAC
+  mode: train
+  soft_alpha: 0.005
+  learning_rate_actor: 0.0003
+  learning_rate_critic: 0.0003
+  batch_size: 128
+  target_network_frequency: 1
+  noise_clip: 0.5
+  entropy_alpha: 0.1
+  gamma_discount: 0.99
+  model_path: ''
+  total_training_steps: 500000
+  replay_buffer_size: 500000
+  learning_starts: 128
+  policy_update_frequency: 1
+  use_layer_norm: false
+  actor_hidden_units:
+  - 256
+  - 256
+  critic_hidden_units:
+  - 256
+  - 256
+  actor_activation: relu
+  critic_activation: relu
+ControlParams:
+  frequency: 300
+  initialize_from_cloud: false
+  action_magnitude:
+    - 4
+    - 4
+    - 2
+    - 8
+    - 8
+    - 4
+JobParams:
+  gpu: false
+  job_name: ''
+  run_mode: train
+  seed: 1
+  capture_video: false
+  output_path: ''
+  experiment_name: quadruped robot
+CoordinatorParams:
+  chi: 0.25
+  eta: 1.2
+  tau: 100
+  beta: 0.9
+  kappa: 0.02
+  epsilon: 0.4

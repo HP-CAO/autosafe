@@ -1,7 +1,7 @@
 GymParams:
   RobotParams:
     quad_type: 3d
-    action_magnitude: 50
+    action_magnitude: 20
   TaskParams:
     task_type: stabilization
     norm_act_scale: 0.1

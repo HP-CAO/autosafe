@@ -1,0 +1,6 @@
+defaults:
+  - envs: a1_envs_sim.yaml
+  - edge: EdgeControlConfig.yaml
+  - cloud: CloudSystemConfig.yaml
+  - gym: GymConfig.yaml
+  - _self_
