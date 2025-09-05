@@ -8,6 +8,8 @@ from typing import Any, Sequence
 from typing import Optional
 import copy
 
+from tensorflow.python.data.experimental.ops.testing import sleep
+
 from gym_env.quad_gym.robot.unitree_a1 import kinematics
 from gym_env.quad_gym.robot.unitree_a1.motors import MotorControlMode
 from gym_env.quad_gym.robot.unitree_a1.motors import MotorCommand
@@ -81,6 +83,7 @@ class A1(QuadrupedRobot):
         self._foot_contact_history = self.foot_positions_in_body_frame.copy()
         self._foot_contact_history[:, 2] = -self._mpc_body_height
 
+        self.mpc_controller = mpc_controller
         self.normal_mode = True  # False if the system is in the resetting phrase
         # Reset robot to init pose
         self.state = np.array([0.] * 12)
@@ -93,12 +96,16 @@ class A1(QuadrupedRobot):
               num_reset_steps: Optional[int] = None):
         """Resets the robot."""
 
+        self.mpc_controller.reset_controllers()
         self._reset_robot_pose(hard_reset=hard_reset, num_reset_steps=num_reset_steps)
         self._last_timestamp = self.time_since_reset
-        self.state = np.array([0.] * 12)
-        # obs = self.get_observation()
+        self.mpc_controller.update()
+        self.state = self.mpc_controller.robot_state
+        obs = self.get_observation()
+        self.model_based_equilibrium = np.array(self.mpc_controller.ref_point)
         info = {}
-        return None, info
+
+        return obs, info
 
     def _reset_pybullet_client(self):
 
@@ -147,20 +154,26 @@ class A1(QuadrupedRobot):
                 targetVelocity=0,
             )
 
+
+        # todo be careful of the set in real world
         # Steps the robot with position command
-        if num_reset_steps is None:
-            num_reset_steps = int(self._a1_params.reset_time / self._control_interval)
+        # if num_reset_steps is None:
+        #     num_reset_steps = int(self._a1_params.reset_time / self._control_interval)
+        # # Interpolate to the standing position
+        # for i in range(num_reset_steps):
+        #     rate = i / num_reset_steps
+        #     p = self.joint_linear_interpolation(self._motor_init_position,
+        #                                         self._motor_init_target_position, rate)
+        #     # print("_motor_init_position", self._motor_init_position)
+        #     # print("_motor_init_target_position", self._motor_init_target_position)
+        #     # print(p)
+        #     motor_cmd = MotorCommand(desired_position=p)
+        #
+        #     self._step(motor_cmd, MotorControlMode.POSITION)
+        #     # print(f"step counter: {self._step_counter}")
+        #     # print(f"action counter: {self._action_counter}")
+        # # print(self._motor_init_target_position)
 
-        # Interpolate to the standing position
-        for i in range(num_reset_steps):
-            rate = i / num_reset_steps
-            p = self.joint_linear_interpolation(self._motor_init_position,
-                                                self._motor_init_target_position, rate)
-            motor_cmd = MotorCommand(desired_position=p)
-
-            self.step(motor_cmd, MotorControlMode.POSITION)
-            # print(f"step counter: {self._step_counter}")
-            # print(f"action counter: {self._action_counter}")
 
     def _load_robot_urdf(self, urdf_path: str) -> int:
 
@@ -207,9 +220,23 @@ class A1(QuadrupedRobot):
         self._motor_torques = observed_torques
         # self.controller.update_logs()  # Update log records  # TODO: implement this outside
 
-    def step(self, action, motor_control_mode=None):
-        # print("Entering a1.step!!!")
+    def step(self, action):
+        self.mpc_controller.update()
         self._step_counter += 1
+        motor_action, _ = self.mpc_controller.get_action(action=action)
+        self._step(motor_action)
+        obs = self.get_observation()
+        self.state = np.array(self.mpc_controller.robot_state)
+        termination = self.termination_check()
+        truncation = False
+        info = None
+        r = self.get_reward()
+        return obs, r, termination, truncation, info
+
+
+
+    def _step(self, action, motor_control_mode=None):
+        # print("Entering a1.step!!!")
         for _ in range(self._action_repeat):
             self._apply_action(action, motor_control_mode)
             self._pybullet_client.stepSimulation()  # Step in simulation
@@ -232,13 +259,6 @@ class A1(QuadrupedRobot):
                 cameraTargetPosition=self.base_position,
             )
 
-        # obs = self.get_observation()
-        termination = self.termination_check()
-        truncation = False
-        info = None
-        r = self.get_reward()
-        return None, r, termination, truncation, info
-
     def get_reward(self):
         r = -1 * np.linalg.norm(self.model_based_equilibrium - self.state)
         return r
@@ -247,8 +267,8 @@ class A1(QuadrupedRobot):
         # height termination
         if self.state is None:
             return False
-        if self.state[2] < 0.15 or self.state[2]>0.8:
-            return True
+        else:
+            return self.state[2] < 0.15 or self.state[2]>0.8
 
     def _update_contact_history(self):
 
@@ -402,6 +422,9 @@ class A1(QuadrupedRobot):
                 range(leg_id * motors_per_leg, (leg_id + 1) * motors_per_leg)):
             motor_torques_dict[joint_id] = motor_torques_list[torque_id]
         return motor_torques_dict
+
+    def get_observation(self):
+        return self.mpc_controller.state_vector
 
     @property
     def state_vector(self):

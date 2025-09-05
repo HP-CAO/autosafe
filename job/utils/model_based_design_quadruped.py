@@ -31,7 +31,6 @@ KD = np.array([[35., -0., 0., 0., 0., 0.],
                [-0., 0., 0., 0., 0., 68.]])
 
 
-
 SAFE_CONTROLLER_STEP = 10  # think of distance|safe value based switching
 SAFE_CONTROLLER_ACTIVATE_THRESHOLD = 1.0
 
@@ -109,12 +108,11 @@ def get_init_condition_in_safety_envelope(n_points_per_dim=1):
 class ModelbasedAgent:
     def __init__(self, feedback_law=None, action_bound=ACTION_BOUND):
         self.feedback_law = feedback_law
+        self.kp=KP
+        self.kd=KD
 
     def get_action(self, tracking_error):
-
         action = np.squeeze( -1 * KP @ tracking_error[:6] -1 * KD @ tracking_error[6:])
-        action = np.clip(action, -1, 1)
-
         return  action
 
 

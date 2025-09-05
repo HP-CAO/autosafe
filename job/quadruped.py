@@ -47,6 +47,7 @@ def run(cfg: Config) -> None:
     cfg.SACParams = cfg.edge["SACParams"]
     cfg.GymParams = cfg.gym["GymParams"]
     p = setup_pybullet(envs_cfg)
+    cfg.GymParams.TaskParams.max_episode_steps = 2000
 
     env = a1.A1(
         pybullet_client=p,
@@ -72,6 +73,7 @@ def run(cfg: Config) -> None:
         vel_estimator_config=robot_cfg.com_velocity_estimator,
     )
 
+    env.mpc_controller=mpc_controller
     # robot.reset()
 
     if cfg.JobParams.experiment_name == 'sac_base':
@@ -94,9 +96,10 @@ def run(cfg: Config) -> None:
         pass
 
     elif cfg.JobParams.experiment_name == 'model_based':
-        from job.experiments.model_based import evaluate_quad
+        from job.experiments.model_based import evaluate
         from job.utils.model_based_design_quadruped import ModelbasedAgent
-        evaluate_quad(ModelbasedAgent(), env, mpc_controller, writer, cfg, 0)
+        evaluate(ModelbasedAgent(), env, writer, cfg, 0)
+
     else:
         print("Experiment name not recognized. Please check the configuration.")
 
