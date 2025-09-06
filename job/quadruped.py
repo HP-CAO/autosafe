@@ -99,7 +99,15 @@ def run(cfg: Config) -> None:
         from job.experiments.model_based import evaluate
         from job.utils.model_based_design_quadruped import ModelbasedAgent
         evaluate(ModelbasedAgent(), env, writer, cfg, 0)
+    elif cfg.JobParams.experiment_name == 'sac_residual':
 
+        from job.experiments.off_policy_residual import train
+        from agent.OffPolicyRL.SAC import SACAgent
+        from job.utils.model_based_design_quadruped import MATRIX_P, F, ModelbasedAgent
+        n_s = MATRIX_P.shape[0]
+        rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, shape_action)
+        safe_agent = ModelbasedAgent()
+        train(rl_agent, safe_agent, env, writer, cfg)
     else:
         print("Experiment name not recognized. Please check the configuration.")
 
