@@ -1,12 +1,35 @@
 import numpy as np
 import math
-ACTION_BOUND = 1.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
 
-F = np.array([[0.1531, -708.6539,  -0.0965]]) / ACTION_BOUND # feedback law for the safe controller
+ACTION_BOUND = 20.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
 
-MATRIX_P = np.array([[0.0, -0.0024, -0.000],
-                     [-0.0024, 7.7754, 0.0010],
-                     [-0.0000, 0.0010, 0.000]]) * 1.0e+05
+
+MATRIX_P = np.array([[122.164786064669, 0, 0, 0, 2.48716597374493, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 480.62107526958, 0, 0, 0, 0, 0, 155.295455907449],
+                     [2.48716597374493, 0, 0, 0, 3.21760325418695, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 155.295455907449, 0, 0, 0, 0, 0, 156.306807893237]])
+
+KP = np.array([[-0., -0., -0., -0., -0., -0.],
+               [-0., -0., -0., -0., -0., -0.],
+               [-0., -0., 1249., -0., 0., -0.],
+               [-0., -0., 0., 1181., -0., 0.],
+               [-0., -0., 0., 0., 1181., -0.],
+               [-0., -0., -0., 0., -0., 1152.]]) * 0.2
+
+
+KD = np.array([[35., -0., 0., 0., 0., 0.],
+               [0., 35., 0., 0., -0., 0.],
+               [-0., -0., 71., -0., 0., -0.],
+               [-0., -0., -0., 69., -0., 0.],
+               [-0., 0., 0., 0., 69., -0.],
+               [-0., 0., 0., 0., 0., 68.]])
+
 
 SAFE_CONTROLLER_STEP = 10  # think of distance|safe value based switching
 SAFE_CONTROLLER_ACTIVATE_THRESHOLD = 1.0
@@ -23,7 +46,6 @@ def activate_safe_controller_condition(state, activate_threshold=SAFE_CONTROLLER
         return True
     else:
         return False
-
 
 def safety_violation_condition(state):
     x = state[0]
@@ -84,19 +106,18 @@ def get_init_condition_in_safety_envelope(n_points_per_dim=1):
 
 
 class ModelbasedAgent:
-    def __init__(self, feedback_law=F, action_bound=ACTION_BOUND):
+    def __init__(self, feedback_law=None, action_bound=ACTION_BOUND):
         self.feedback_law = feedback_law
-
+        self.kp=KP
+        self.kd=KD
 
     def get_action(self, tracking_error):
-        # x, x_dot, theta, theta_dot = tracking_error
-        # F = np.squeeze(self.feedback_law)
-        # action_abs_1 = F[0] * x + F[1] * x_dot + F[2] * theta + F[3] * theta_dot
-        action_abs = np.dot(self.feedback_law, tracking_error)
-        # Normalize to [-1, 1] # the action bound is determined when calculating the feedback law
-        action_abs = np.clip(action_abs, -1, 1)
-        # print(f"action_abs: {action_abs}, tracking_error: {tracking_error}")
-        return  action_abs
+        action = np.squeeze( -1 * KP @ tracking_error[:6] -1 * KD @ tracking_error[6:])
+        return action
+
+    def safety_switch_on(self, tracking_error):
+        safety_value = tracking_error @ MATRIX_P @ tracking_error.T
+        return safety_value > 1
 
 
 

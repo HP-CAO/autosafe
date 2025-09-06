@@ -1,4 +1,4 @@
-"""utils for loading environment"""
+"""model_based for loading environment"""
 import pybullet
 from pybullet_utils import bullet_client
 

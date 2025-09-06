@@ -23,13 +23,12 @@ def train(rl_agent, safe_agent, env, writer, cfg):
 
             rl_action = rl_agent.get_action(obs_aug, mode='train').squeeze()
             safe_action = safe_agent.get_action(tracking_error).squeeze()
-            action = rl_action + safe_action
-
-            next_obs, rewards, terminations, truncations, infos = env.step(rl_action)
+            action = np.clip(rl_action + safe_action, -1, 1)
+            next_obs, rewards, terminations, truncations, infos = env.step(action)
             tracking_error = env.state - env.model_based_equilibrium
 
             next_obs_aug = np.append(next_obs, tracking_error)
-            replay_mem.add([obs_aug, action, rewards, next_obs_aug, terminations])
+            replay_mem.add([obs_aug, rl_action, rewards, next_obs_aug, terminations])
 
             obs_aug = copy.deepcopy(next_obs_aug)
             episodic_return.append(rewards)
@@ -81,7 +80,7 @@ def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step):
             for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
                 rl_action = rl_agent.get_action(obs_aug, mode='test').squeeze()
                 safe_action = safe_agent.get_action(tracking_error).squeeze()
-                action = rl_action + safe_action
+                action = np.clip(rl_action + safe_action, -1, 1)
                 next_obs, r, terminations, truncations, infos = env.step(action)
                 performance_score = env.get_performance_score()
                 accumulate_performance_score.append(performance_score)

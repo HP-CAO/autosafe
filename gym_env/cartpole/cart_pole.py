@@ -5,7 +5,7 @@ https://github.com/Farama-Foundation/Gymnasium/blob/main/gymnasium/envs/classic_
 """
 import copy
 import math
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 
@@ -14,7 +14,7 @@ import dataclasses
 from gymnasium import spaces
 from gymnasium.error import DependencyNotInstalled
 import matplotlib.pyplot as plt
-from job.utils.model_based_design_cartpole import MATRIX_P
+from agent.model_based.model_based_design_cartpole import MATRIX_P
 
 # We define the configuration classes to make the environment configurable using configuration files
 @dataclasses.dataclass

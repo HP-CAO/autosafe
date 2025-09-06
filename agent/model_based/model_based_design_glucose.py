@@ -1,23 +1,21 @@
 import numpy as np
 import math
-ACTION_BOUND = 20.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
+ACTION_BOUND = 1.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
 
-F = np.array([[25.9995, 19.4241, 75.9886, 13.8553]]) / ACTION_BOUND # feedback law for the safe controller
+F = np.array([[0.1531, -708.6539,  -0.0965]]) / ACTION_BOUND # feedback law for the safe controller
 
-MATRIX_P = np.array([[13.3425, 6.73778, 16.2166, 3.47318],
-                     [6.73778, 3.94828, 9.69035, 2.09032],
-                     [16.2166, 9.69035, 25.9442, 5.31439],
-                     [3.47318, 2.09032, 5.31439, 1.16344]])
+MATRIX_P = np.array([[0.0, -0.0024, -0.000],
+                     [-0.0024, 7.7754, 0.0010],
+                     [-0.0000, 0.0010, 0.000]]) * 1.0e+05
 
 SAFE_CONTROLLER_STEP = 10  # think of distance|safe value based switching
 SAFE_CONTROLLER_ACTIVATE_THRESHOLD = 1.0
 
-SYSTEM_A = np.array([[1.0000, 0.0333, 0, 0],
-                     [0.6465, 1.5268, 2.1666, 0.4020],
-                     [0, 0, 1.0000, 0.0333],
-                     [-1.5151, -1.2348, -4.3123, 0.0577]])
+SYSTEM_A = np.array([[0.9983, -22.9537, -0.0001],
+                     [0., 0.9976, 0.0],
+                     [0., 0, 0.9672]])
 
-SYSTEM_B = np.array([[0, 0.0334, 0, -0.0783]])
+SYSTEM_B = np.array([[0, 0., 0.1639]])
 
 def activate_safe_controller_condition(state, activate_threshold=SAFE_CONTROLLER_ACTIVATE_THRESHOLD):
     safe_value = np.array(state).transpose() @ MATRIX_P @ np.array(state)
@@ -99,6 +97,10 @@ class ModelbasedAgent:
         action_abs = np.clip(action_abs, -1, 1)
         # print(f"action_abs: {action_abs}, tracking_error: {tracking_error}")
         return  action_abs
+
+    def safety_switch_on(self, tracking_error):
+        safety_value = tracking_error @ MATRIX_P @ tracking_error.T
+        return safety_value > 1
 
 
 

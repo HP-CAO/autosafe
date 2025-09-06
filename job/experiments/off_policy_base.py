@@ -17,11 +17,7 @@ def train(agent, env, writer, cfg):
 
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
-            if global_step < cfg.SACParams.learning_starts:
-                action = env.action_space.sample().squeeze()
-            else:
-                action = agent.get_action(obs, mode='train').squeeze()
-
+            action = agent.get_action(obs, mode='train').squeeze()
             next_obs, rewards, terminations, truncations, infos = env.step(action)
             replay_mem.add([obs, action, rewards, next_obs, terminations])
 

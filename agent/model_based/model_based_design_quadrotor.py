@@ -106,5 +106,9 @@ class ModelbasedAgent:
         action_abs = self.feedback_law @ (tracking_error) + self.gravity_compensation
         return  action_abs
 
+    def safety_switch_on(self, tracking_error):
+        safety_value = tracking_error @ MATRIX_P @ tracking_error.T
+        return safety_value > 1
+
 
 

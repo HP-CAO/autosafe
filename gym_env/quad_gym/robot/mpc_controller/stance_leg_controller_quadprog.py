@@ -17,7 +17,7 @@ from gym_env.quad_gym.robot.mpc_controller import qp_torque_optimizer
 
 # from config.variables import FORCE_DIMENSION, MAX_DDQ, MIN_DDQ, QP_KP, QP_KD
 # from config.variables import QP_FRICTION_COEFF
-# from utils.utils import rot_mat_3d
+# from model_based.model_based import rot_mat_3d
 
 
 class TorqueStanceLegController:

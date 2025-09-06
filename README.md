@@ -71,6 +71,8 @@ tensorboard --logdir ./outputs/{FOLDER_NAME}
 - [ ] Implement Lyapunov-based Safe RL (model-free)
 - 
 - [ ] Implement AR-RL (model-based)
-- [ ] Implement Simplex (model-based)
-- [ ] Implement Residual (model-based)
+- [x] Implement Simplex (model-based)
+- [x] Implement Residual (model-based)
+- [ ] Ablation: Learnable temperature 
+- [ ] Ablation: The influence of the model-based policy
 

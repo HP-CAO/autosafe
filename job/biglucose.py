@@ -36,7 +36,7 @@ def run(cfg: AllConfig) -> None:
     elif cfg.JobParams.experiment_name == 'autosafe':
         from job.experiments.off_policy_autosafe import train
         from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
-        from job.utils.model_based_design_cartpole import MATRIX_P, F
+        from agent.model_based.model_based_design_cartpole import MATRIX_P, F
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         agent = AutoSafeSAC(cfg.AgentParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F)
@@ -44,14 +44,14 @@ def run(cfg: AllConfig) -> None:
     elif cfg.JobParams.experiment_name == 'autosafe_vary': #todo for testing
         from job.experiments.on_policy_autosafe import train
         from agent.OffPolicyRL.SAC_AutoSafe_Vary import AutoSafeSAC
-        from job.utils.model_based_design_cartpole import MATRIX_P, F
+        from agent.model_based.model_based_design_cartpole import MATRIX_P, F
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         agent = AutoSafeSAC(cfg.AgentParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F)
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'safe':
         from job.experiments.model_based import evaluate
-        from job.utils.model_based_design_cartpole import ModelbasedAgent
+        from agent.model_based.model_based_design_cartpole import ModelbasedAgent
         evaluate(ModelbasedAgent(), env, writer, cfg, 0)
     else:
         print("Experiment name not recognized. Please check the configuration.")

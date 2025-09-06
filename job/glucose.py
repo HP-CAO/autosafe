@@ -7,7 +7,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from gym_env.Glucose import Glucose, GlucoseConfig
 from job.job_config import JobConfig
-from agent.OffPolicyRL.SAC import SACAgent, SACConfig
+from agent.OffPolicyRL.SAC import SACConfig
 from agent.utils import seed_everything, setup_environment, setup_logger
 from tensorboardX import SummaryWriter
 from agent.OnPolicyRL.PPO import PPOConfig, PPOAgent, RolloutBuffer
@@ -46,7 +46,7 @@ def run(cfg: AllConfig) -> None:
     elif cfg.JobParams.experiment_name == 'sac_autosafe':
         from job.experiments.off_policy_autosafe import train
         from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
-        from job.utils.model_based_design_glucose import MATRIX_P, F
+        from agent.model_based.model_based_design_glucose import MATRIX_P, F
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s,
@@ -56,7 +56,7 @@ def run(cfg: AllConfig) -> None:
     elif cfg.JobParams.experiment_name == 'ppo_autosafe':
         from job.experiments.on_policy_autosafe import train
         from agent.OnPolicyRL.PPO_AutoSafe import AutoSafePPO
-        from job.utils.model_based_design_glucose import MATRIX_P, F
+        from agent.model_based.model_based_design_glucose import MATRIX_P, F
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         agent = AutoSafePPO(cfg.PPOParams, observation_dim + n_s,
@@ -67,12 +67,21 @@ def run(cfg: AllConfig) -> None:
 
     elif cfg.JobParams.experiment_name == 'model_based':
         from job.experiments.model_based import evaluate
-        from job.utils.model_based_design_glucose import ModelbasedAgent
+        from agent.model_based.model_based_design_glucose import ModelbasedAgent
         evaluate(ModelbasedAgent(), env, writer, cfg, 0)
     elif cfg.JobParams.experiment_name == 'sac_residual':
         from job.experiments.off_policy_residual import train
         from agent.OffPolicyRL.SAC import SACAgent
-        from job.utils.model_based_design_glucose import MATRIX_P, F, ModelbasedAgent
+        from agent.model_based.model_based_design_glucose import MATRIX_P, F, ModelbasedAgent
+        observation_dim = env.observation_space.shape[0]
+        n_s = MATRIX_P.shape[0]
+        rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
+        safe_agent = ModelbasedAgent()
+        train(rl_agent, safe_agent, env, writer, cfg)
+    elif cfg.JobParams.experiment_name == 'sac_simplex':
+        from job.experiments.off_policy_simplex import train
+        from agent.OffPolicyRL.SAC import SACAgent
+        from agent.model_based.model_based_design_glucose import MATRIX_P, F, ModelbasedAgent
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])

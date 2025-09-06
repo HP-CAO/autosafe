@@ -1,13 +1,11 @@
-import os
 import tensorflow as tf
 import numpy as np
 from dataclasses import dataclass, field
-from tensorflow.keras.layers import Input, Dense, LayerNormalization, Layer, Concatenate
+from tensorflow.keras.layers import Input, Dense, LayerNormalization, Concatenate
 from tensorflow.keras import Model
-import tensorflow_probability as tfp
 
 from agent.OffPolicyRL.archived.ReplayBuffer import shape
-from job.utils.model_based_design_cartpole import MATRIX_P, F
+from agent.model_based.model_based_design_cartpole import MATRIX_P, F
 
 @dataclass
 class SACConfig:
