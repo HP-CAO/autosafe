@@ -88,6 +88,7 @@ def get_init_condition_in_safety_envelope(n_points_per_dim=1):
 class ModelbasedAgent:
     def __init__(self, feedback_law=F, action_bound=ACTION_BOUND):
         self.feedback_law = feedback_law
+        self.matrix_P = MATRIX_P
 
 
     def get_action(self, tracking_error):

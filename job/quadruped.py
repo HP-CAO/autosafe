@@ -49,6 +49,12 @@ def run(cfg: Config) -> None:
     p = setup_pybullet(envs_cfg)
     cfg.GymParams.TaskParams.max_episode_steps = 2000
 
+    from agent.OffPolicyRL.SAC import SACAgent
+    from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
+    from agent.model_based.model_based_design_quadruped import MATRIX_P, ModelbasedAgent
+    from agent.OnPolicyRL.PPO_AutoSafe import AutoSafePPO
+    from agent.OnPolicyRL.PPO import PPOAgent
+
     env = a1.A1(
         pybullet_client=p,
         cmd_params=robot_cfg.command,
@@ -78,7 +84,9 @@ def run(cfg: Config) -> None:
 
     if cfg.JobParams.experiment_name == 'sac_base':
         from job.experiments.off_policy_base import train
-        agent = SACAgent(cfg.SACParams, observation_dim, shape_action)
+        n_s = MATRIX_P.shape[0]
+        # ensure having same information in input by including the tracking error as the other baselines
+        agent = SACAgent(cfg.SACParams, observation_dim + n_s, shape_action)
         train(agent, env, writer, cfg)
 
     elif cfg.JobParams.experiment_name == 'ppo_base':
@@ -86,8 +94,6 @@ def run(cfg: Config) -> None:
 
     elif cfg.JobParams.experiment_name == 'sac_autosafe':
         from job.experiments.off_policy_autosafe import train
-        from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
-        from agent.model_based.model_based_design_cartpole import MATRIX_P, F
         n_s = MATRIX_P.shape[0]
         agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, shape_action, MATRIX_P, F, case='quadruped')
         train(agent, env, writer, cfg)
@@ -97,13 +103,10 @@ def run(cfg: Config) -> None:
 
     elif cfg.JobParams.experiment_name == 'model_based':
         from job.experiments.model_based import evaluate
-        from agent.model_based.model_based_design_quadruped import ModelbasedAgent
         evaluate(ModelbasedAgent(), env, writer, cfg, 0)
     elif cfg.JobParams.experiment_name == 'sac_residual':
 
         from job.experiments.off_policy_residual import train
-        from agent.OffPolicyRL.SAC import SACAgent
-        from agent.model_based.model_based_design_quadruped import MATRIX_P, F, ModelbasedAgent
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, shape_action)
         safe_agent = ModelbasedAgent()
@@ -111,11 +114,16 @@ def run(cfg: Config) -> None:
 
     elif cfg.JobParams.experiment_name == 'sac_simplex':
         from job.experiments.off_policy_simplex import train
-        from agent.OffPolicyRL.SAC import SACAgent
-        from agent.model_based.model_based_design_quadruped import MATRIX_P, F, ModelbasedAgent
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
-        rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
+        rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, shape_action)
+        safe_agent = ModelbasedAgent()
+        train(rl_agent, safe_agent, env, writer, cfg)
+    elif cfg.JobParams.experiment_name == 'sac_lyapunov':
+        from job.experiments.off_policy_lyapunov import train
+        observation_dim = env.observation_space.shape[0]
+        n_s = MATRIX_P.shape[0]
+        rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, shape_action)
         safe_agent = ModelbasedAgent()
         train(rl_agent, safe_agent, env, writer, cfg)
     else:

@@ -110,6 +110,7 @@ class ModelbasedAgent:
         self.feedback_law = feedback_law
         self.kp=KP
         self.kd=KD
+        self.matrix_P = MATRIX_P
 
     def get_action(self, tracking_error):
         action = np.squeeze( -1 * KP @ tracking_error[:6] -1 * KD @ tracking_error[6:])

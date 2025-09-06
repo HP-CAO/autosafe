@@ -100,6 +100,7 @@ class ModelbasedAgent:
     def __init__(self, feedback_law=F):
         self.feedback_law = feedback_law
         self.gravity_compensation = 0.25 * 0.027 * 9.8 # for each propeller
+        self.matrix_P = MATRIX_P
 
     def get_action(self, tracking_error):
         # tracking_error env state - env control goal

@@ -30,10 +30,18 @@ def run(cfg: AllConfig) -> None:
     writer = SummaryWriter(os.path.join(cfg.JobParams.output_path, cfg.JobParams.job_name))
     env = CartPoleEnv(cfg.GymParams)
 
+    from agent.OffPolicyRL.SAC import SACAgent
+    from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
+    from agent.model_based.model_based_design_cartpole import MATRIX_P, F, ModelbasedAgent
+    from agent.OnPolicyRL.PPO_AutoSafe import AutoSafePPO
+    from agent.OnPolicyRL.PPO import PPOAgent
+
     if cfg.JobParams.experiment_name == 'sac_base':
         from job.experiments.off_policy_base import train
         observation_dim = env.observation_space.shape[0]
-        agent = SACAgent(cfg.SACParams, observation_dim, env.action_space.shape[0])
+        n_s = MATRIX_P.shape[0]
+        # ensure having same information in input by including the tracking error as the other baselines
+        agent = SACAgent(cfg.SACParams, observation_dim + n_s,env.action_space.shape[0])
         train(agent, env, writer, cfg)
 
     elif cfg.JobParams.experiment_name == 'ppo_base':
@@ -46,18 +54,13 @@ def run(cfg: AllConfig) -> None:
 
     elif cfg.JobParams.experiment_name == 'sac_autosafe':
         from job.experiments.off_policy_autosafe import train
-        from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
-        from agent.model_based.model_based_design_cartpole import MATRIX_P, F
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
-        agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s,
-                            env.action_space.shape[0], MATRIX_P, F, case='cartpole')
+        agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F, case='cartpole')
         train(agent, env, writer, cfg)
 
     elif cfg.JobParams.experiment_name == 'ppo_autosafe':
         from job.experiments.on_policy_autosafe import train
-        from agent.OnPolicyRL.PPO_AutoSafe import AutoSafePPO
-        from agent.model_based.model_based_design_cartpole import MATRIX_P, F
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         agent = AutoSafePPO(cfg.PPOParams, observation_dim + n_s,
@@ -68,12 +71,9 @@ def run(cfg: AllConfig) -> None:
 
     elif cfg.JobParams.experiment_name == 'model_based':
         from job.experiments.model_based import evaluate
-        from agent.model_based.model_based_design_cartpole import ModelbasedAgent
         evaluate(ModelbasedAgent(), env, writer, cfg, 0)
     elif cfg.JobParams.experiment_name == 'sac_residual':
         from job.experiments.off_policy_residual import train
-        from agent.OffPolicyRL.SAC import SACAgent
-        from agent.model_based.model_based_design_cartpole import MATRIX_P, F, ModelbasedAgent
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
@@ -81,8 +81,14 @@ def run(cfg: AllConfig) -> None:
         train(rl_agent, safe_agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'sac_simplex':
         from job.experiments.off_policy_simplex import train
-        from agent.OffPolicyRL.SAC import SACAgent
-        from agent.model_based.model_based_design_cartpole import MATRIX_P, F, ModelbasedAgent
+        observation_dim = env.observation_space.shape[0]
+        n_s = MATRIX_P.shape[0]
+        rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
+        safe_agent = ModelbasedAgent()
+        train(rl_agent, safe_agent, env, writer, cfg)
+
+    elif cfg.JobParams.experiment_name == 'sac_lyapunov':
+        from job.experiments.off_policy_lyapunov import train
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
