@@ -87,6 +87,14 @@ def run(cfg: AllConfig) -> None:
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
         safe_agent = ModelbasedAgent()
         train(rl_agent, safe_agent, env, writer, cfg)
+    elif cfg.JobParams.experiment_name == 'sac_lag':
+        from job.experiments.off_policy_lagrangian import train
+        from agent.OffPolicyRL.SAC_Lagrangian import SACAgentLag
+        observation_dim = env.observation_space.shape[0]
+        n_s = MATRIX_P.shape[0]
+        rl_agent = SACAgentLag(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], lag_factor=0.5)
+        safe_agent = ModelbasedAgent()
+        train(rl_agent, safe_agent, env, writer, cfg)
     else:
         print("Experiment name not recognized. Please check the configuration.")
 if __name__ == '__main__':

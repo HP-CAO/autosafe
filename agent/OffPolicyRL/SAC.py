@@ -213,6 +213,8 @@ class SACAgent:
         min_q_e = tf.minimum(q_e, q_e_2) - self.params.entropy_alpha * log_prob_next
         y_exp = r1 + self.params.gamma_discount * min_q_e * (1 - ter)
 
+        y_exp = tf.stop_gradient(y_exp)
+
         with tf.GradientTape() as tape:
             y_pre = self.critic(critic_input)
             critic_loss = tf.keras.losses.MeanSquaredError()(y_exp, y_pre)
