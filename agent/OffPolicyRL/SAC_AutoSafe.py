@@ -82,23 +82,36 @@ def get_action_mean(action_mean_learn, action_safe, lam):
     return action
 
 class AutoSafeSAC:
-    def __init__(self, params: SACConfig, shape_observations, shape_action, P_matrix, F_matrix, mode='train', case='cartpole'):
+    def __init__(self, params: SACConfig, shape_observations, shape_action, P_matrix, F_matrix, mode='train', case='cartpole', lam_mode='learn'):
         self.params = params
         self.shape_action = shape_action
         self.critic_update_step = 0
+        self.lam_mode = lam_mode
 
-        # Build models
-        if case == 'cartpole':
+        if self.lam_mode == 'learn':
             from agent.AutoSafe import AutoSafeActor
             self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
-        elif case == 'quadrotor':
-            from agent.AutoSafe import AutoSafeActorQuad
-            self.actor = AutoSafeActorQuad(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
-        elif case == 'glucose':
-            from agent.AutoSafe import AutoSafeActorGlucose
-            self.actor = AutoSafeActorGlucose(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
+        elif self.lam_mode == 'linear':
+            from agent.AutoSafe import AutoSafeActorSchedule
+            self.actor = AutoSafeActorSchedule(shape_action, P_matrix,
+                                               F_matrix, LOG_STD_MAX, LOG_STD_MIN, schedule_type="linear")
         else:
-            raise NotImplementedError
+            from agent.AutoSafe import AutoSafeActorSchedule
+            self.actor = AutoSafeActorSchedule(shape_action, P_matrix,
+                                               F_matrix, LOG_STD_MAX, LOG_STD_MIN, schedule_type="exp")
+        # Build models
+        # if case == 'cartpole':
+        #     , AutoSafeActorSchedule
+        #     # self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
+        #     self.actor = AutoSafeActorSchedule(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
+        # elif case == 'quadrotor':
+        #     from agent.AutoSafe import AutoSafeActorQuad
+        #     self.actor = AutoSafeActorQuad(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
+        # elif case == 'glucose':
+        #     from agent.AutoSafe import AutoSafeActorGlucose
+        #     self.actor = AutoSafeActorGlucose(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
+        # else:
+        #     raise NotImplementedError
 
         self.critic = build_critic(shape_observations + shape_action, 1, params, name="critic_")
         self.critic_target = build_critic(shape_observations + shape_action, 1, params, name="critic_target_")
@@ -182,9 +195,7 @@ class AutoSafeSAC:
         min_q_e = tf.minimum(q_e, q_e_2) - self.params.entropy_alpha * log_prob_next
         y_exp = r1 + self.params.gamma_discount * min_q_e * (1 - ter)
 
-        # todo consider apply stop gradient or, rescale gradient on lam to make the learning more stable
         y_exp = tf.stop_gradient(y_exp)
-
 
         with tf.GradientTape() as tape:
             y_pre = self.critic(critic_input)
@@ -198,7 +209,6 @@ class AutoSafeSAC:
 
         self.optimizer_critic.apply_gradients(zip(q_grads, self.critic.trainable_variables))
         self.optimizer_critic_2.apply_gradients(zip(q_grads_2, self.critic_2.trainable_variables))
-
         return critic_loss, critic_loss_2, q_e, q_e_2, lam, tem
 
     @tf.function
@@ -233,6 +243,9 @@ class AutoSafeSAC:
         else:
             actor_loss = 0.0
             log_pi = 0.0
+
+        if self.lam_mode != 'learn':
+            self.actor.update_tem(self.critic_update_step)
 
         training_info = {
             "critic_loss": critic_loss.numpy().mean(),
