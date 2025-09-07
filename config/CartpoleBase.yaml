@@ -18,7 +18,7 @@ GymParams:
     - 0.0
     - 3.141592653589793
     - 0.0
-    control_goal_x: 0.0
+    control_goal_x: 0.1
     control_goal_theta: 0.0
     max_episode_steps: 500
     evaluation_period: 10000

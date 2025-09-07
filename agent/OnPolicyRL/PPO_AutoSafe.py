@@ -259,7 +259,6 @@ class AutoSafePPO:
         with tf.GradientTape() as tape:
             values = self.critic(s_batch)
             critic_loss = 0.5 * tf.reduce_mean(tf.square(ret_batch - values))
-
         grads = tape.gradient(critic_loss, self.critic.trainable_variables)
         self.optimizer_critic.apply_gradients(zip(grads, self.critic.trainable_variables))
         return {'critic_loss': critic_loss}
@@ -316,12 +315,9 @@ class AutoSafePPO:
             log_det_tanh = tf.reduce_sum(tf.math.log(1.0 - a_drl ** 2 + eps), axis=-1)
             log_det_affine = d * tf.math.log(tf.abs(scale) + eps)
             log_probs = log_p_z - log_det_tanh - log_det_affine
-            print(log_probs)
-            print(old_lp_batch)
             # PPO ratio
             # ratio = tf.exp(tf.clip_by_value(log_probs - old_lp_batch, -20.0, 20.0))
             ratio = tf.exp(log_probs - old_lp_batch)
-            print(ratio)
             surr1 = ratio * adv_batch
             surr2 = tf.clip_by_value(ratio, 1 - self.params.clip_range, 1 + self.params.clip_range) * adv_batch
             actor_loss = -tf.reduce_mean(tf.minimum(surr1, surr2))
