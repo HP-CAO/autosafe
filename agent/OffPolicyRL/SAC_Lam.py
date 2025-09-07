@@ -274,10 +274,10 @@ class SACAgentLam:
         if self.critic_update_step % self.params.policy_update_frequency == 0:
             actor_loss, log_pi = self._optimize_actor(ob1_tf)
             lam_loss = self._optimize_lam(ob1_tf)
-            self.actor_update_step += 1
         else:
             actor_loss = 0.0
             log_pi = 0.0
+            lam_loss = 0.0
 
 
         training_info = {

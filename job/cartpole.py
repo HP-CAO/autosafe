@@ -101,15 +101,25 @@ def run(cfg: AllConfig) -> None:
         rl_agent = SACAgentLag(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], lag_factor=0.5)
         safe_agent = ModelbasedAgent()
         train(rl_agent, safe_agent, env, writer, cfg)
-
-    elif cfg.JobParams.experiment_name == 'sac_lam':
+    elif cfg.JobParams.experiment_name == 'sac_lam_opt':
         from job.experiments.off_policy_lam import train
         from agent.OffPolicyRL.SAC_Lam import SACAgentLam
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         safe_agent = ModelbasedAgent()
-        rl_agent = SACAgentLam(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], safe_agent=safe_agent)
-        train(rl_agent, safe_agent, env, writer, cfg)
+        # we need to include the value of lam to make the mdp stationary
+        rl_agent = SACAgentLam(cfg.SACParams, observation_dim + n_s + 1, env.action_space.shape[0], safe_agent=safe_agent)
+        train(rl_agent, safe_agent, env, writer, cfg, mode='opt')
+        train(rl_agent, safe_agent, env, writer, cfg, mode='linear')
+    elif cfg.JobParams.experiment_name == 'sac_lam_linear':
+        from job.experiments.off_policy_lam import train
+        from agent.OffPolicyRL.SAC_Lam import SACAgentLam
+        observation_dim = env.observation_space.shape[0]
+        n_s = MATRIX_P.shape[0]
+        safe_agent = ModelbasedAgent()
+        # we need to include the value of lam to make the mdp stationary
+        rl_agent = SACAgentLam(cfg.SACParams, observation_dim + n_s + 1, env.action_space.shape[0], safe_agent=safe_agent)
+        train(rl_agent, safe_agent, env, writer, cfg, mode='linear')
     else:
         print("Experiment name not recognized. Please check the configuration.")
 

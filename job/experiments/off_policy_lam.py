@@ -8,6 +8,43 @@ logger = setup_logger()
 import tensorflow as tf
 
 
+def update_lam(step,
+                  init_val=1.0 - 1e-5,
+                  final_val=1e-5,
+                  warmup_steps=0,
+                  decay_steps=100_000,
+                  mode="linear"):
+    """
+    Return decayed λ value as a simple schedule.
+
+    Args:
+        step         : int, current global step
+        init_val     : float, starting λ
+        final_val    : float, minimum λ after full decay
+        warmup_steps : int, number of steps to keep λ constant before decay
+        decay_steps  : int, number of steps to decay from init_val to final_val
+        mode         : 'linear' or 'exp'
+
+    Returns:
+        float : current λ value
+    """
+    if step < warmup_steps:
+        return init_val
+
+    t = step - warmup_steps
+
+    if mode == "linear":
+        frac = min(1.0, t / decay_steps)
+        lam = init_val - (init_val - final_val) * frac
+    elif mode == "exp":
+        k = -np.log(final_val / init_val) / decay_steps
+        lam = final_val + (init_val - final_val) * np.exp(-k * t)
+    else:
+        raise ValueError(f"Unknown decay mode: {mode}")
+
+    return float(np.clip(lam, final_val, init_val))
+
+
 def pretrain_lam(rl_agent, safe_agent, env, writer, cfg):
     pretrain_buffer = ReplayMemory(size=cfg.SACParams.replay_buffer_size)
     pretraining_steps = 10000
@@ -38,8 +75,9 @@ def pretrain_lam(rl_agent, safe_agent, env, writer, cfg):
         minibatch = pretrain_buffer.sample(batch_size)
         obs = tf.constant(minibatch[0])
         label = tf.constant(minibatch[1])
+        aug_obs = tf.concat([obs, label], axis=1)
         with tf.GradientTape() as tape:
-            preds = rl_agent.lam_network(obs)
+            preds = rl_agent.lam_network(aug_obs)
             loss =  mse_loss_fn(label, preds)
         vars_lam = rl_agent.lam_network.trainable_variables
         grads = tape.gradient(loss, vars_lam)
@@ -47,33 +85,40 @@ def pretrain_lam(rl_agent, safe_agent, env, writer, cfg):
     print("Finishing pretraining")
 
 
-
-def train(rl_agent, safe_agent, env, writer, cfg):
+def train(rl_agent, safe_agent, env, writer, cfg, mode='opt'):
     training_info = {}
     global_step = 0
     replay_mem = ReplayMemory(size=cfg.SACParams.replay_buffer_size)
     progress = tqdm(total=cfg.SACParams.total_training_steps)
     evaluate_flag = False
-    pretrain_lam(rl_agent, safe_agent, env, writer, cfg)
+    lam = 1.0
+
+    if mode=="opt":
+        pretrain_lam(rl_agent, safe_agent, env, writer, cfg)
 
     while global_step < cfg.SACParams.total_training_steps:
         obs, _ = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
         episodic_return = []
         tracking_error = env.state - env.model_based_equilibrium
         obs_aug = np.append(obs, tracking_error)
+        obs_aug = np.append(obs_aug, [lam])
         lam_list = []
 
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
             rl_action = rl_agent.get_action(obs_aug, mode='train').squeeze()
             safe_action = safe_agent.get_action(tracking_error).squeeze()
-            lam = rl_agent.get_lam(obs_aug).squeeze()
+
+            if mode== 'opt':
+                lam = rl_agent.get_lam(obs_aug).squeeze()
+
             action = np.clip((1 - lam) * rl_action + lam * safe_action, -1, 1)
 
             next_obs, rewards, terminations, truncations, infos = env.step(action)
             tracking_error = env.state - env.model_based_equilibrium
 
             next_obs_aug = np.append(next_obs, tracking_error)
+            next_obs_aug = np.append(next_obs_aug, [lam])
             replay_mem.add([obs_aug, rl_action, rewards, next_obs_aug, terminations])
 
             obs_aug = copy.deepcopy(next_obs_aug)
@@ -95,8 +140,11 @@ def train(rl_agent, safe_agent, env, writer, cfg):
             if terminations:
                 break
 
+        if global_step % 2000 == 0:
+            lam = update_lam(global_step, mode='linear')
+
         if evaluate_flag:
-            evaluate(rl_agent, safe_agent, env, writer, cfg, global_step)
+            evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, lam, mode)
             evaluate_flag = False
 
         training_info['episodic_return'] = sum(episodic_return)
@@ -110,7 +158,7 @@ def train(rl_agent, safe_agent, env, writer, cfg):
         writer.add_scalar("training/episodic_ave_lam", training_info['episodic_ave_lam'], global_step)
 
 
-def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step):
+def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, lam, mode="opt"):
     logger.info("Start evaluating the agent...")
     multi_rollout_return = []
     multi_rollout_performance = []
@@ -125,17 +173,21 @@ def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step):
             episodic_return = []
             tracking_error = env.state - env.model_based_equilibrium
             obs_aug = np.append(obs, tracking_error)
-
+            obs_aug = np.append(obs_aug, [lam])
             for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
                 rl_action = rl_agent.get_action(obs_aug, mode='test').squeeze()
                 safe_action = safe_agent.get_action(tracking_error).squeeze()
-                lam = rl_agent.get_lam(obs_aug).squeeze()
+
+                if mode == 'opt':
+                    lam = rl_agent.get_lam(obs_aug).squeeze()
+
                 action = np.clip((1 - lam) * rl_action + lam * safe_action, -1, 1)
                 next_obs, r, terminations, truncations, infos = env.step(action)
                 performance_score = env.get_performance_score()
                 accumulate_performance_score.append(performance_score)
                 tracking_error = env.state - env.model_based_equilibrium
                 next_obs_aug = np.append(next_obs, tracking_error)
+                next_obs_aug = np.append(next_obs_aug, [lam])
                 obs_aug = copy.deepcopy(next_obs_aug)
                 episodic_return.append(r)
 
