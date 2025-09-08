@@ -35,6 +35,8 @@ class SACConfig:
     critic_hidden_units: list = field(default_factory=lambda: [256, 256])
     actor_activation: str = 'relu'
     critic_activation: str = 'relu'
+    sac_lam_mode:str = 'opt'
+    autosafe_lam_mode:str = 'opt'
 
 def build_mlp(input_layer, hidden_units, activation, use_layer_norm=False):
     """Builds an MLP given a starting input layer."""
@@ -82,36 +84,25 @@ def get_action_mean(action_mean_learn, action_safe, lam):
     return action
 
 class AutoSafeSAC:
-    def __init__(self, params: SACConfig, shape_observations, shape_action, P_matrix, F_matrix, mode='train', case='cartpole', lam_mode='learn'):
+    def __init__(self, params: SACConfig, shape_observations, shape_action, P_matrix, F_matrix, mode='train', lam_mode='opt'):
         self.params = params
         self.shape_action = shape_action
         self.critic_update_step = 0
         self.lam_mode = lam_mode
 
-        if self.lam_mode == 'learn':
+        if self.lam_mode == 'opt':
             from agent.AutoSafe import AutoSafeActor
             self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
         elif self.lam_mode == 'linear':
             from agent.AutoSafe import AutoSafeActorSchedule
             self.actor = AutoSafeActorSchedule(shape_action, P_matrix,
-                                               F_matrix, LOG_STD_MAX, LOG_STD_MIN, schedule_type="linear")
+                                               F_matrix, LOG_STD_MAX, LOG_STD_MIN, schedule_type="linear",
+                                               total_steps=int(self.params.total_training_steps * 0.9))
         else:
             from agent.AutoSafe import AutoSafeActorSchedule
             self.actor = AutoSafeActorSchedule(shape_action, P_matrix,
-                                               F_matrix, LOG_STD_MAX, LOG_STD_MIN, schedule_type="exp")
-        # Build models
-        # if case == 'cartpole':
-        #     , AutoSafeActorSchedule
-        #     # self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
-        #     self.actor = AutoSafeActorSchedule(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
-        # elif case == 'quadrotor':
-        #     from agent.AutoSafe import AutoSafeActorQuad
-        #     self.actor = AutoSafeActorQuad(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
-        # elif case == 'glucose':
-        #     from agent.AutoSafe import AutoSafeActorGlucose
-        #     self.actor = AutoSafeActorGlucose(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
-        # else:
-        #     raise NotImplementedError
+                                               F_matrix, LOG_STD_MAX, LOG_STD_MIN, schedule_type="exp",
+                                               total_steps=int(self.params.total_training_steps * 0.9))
 
         self.critic = build_critic(shape_observations + shape_action, 1, params, name="critic_")
         self.critic_target = build_critic(shape_observations + shape_action, 1, params, name="critic_target_")
@@ -244,7 +235,7 @@ class AutoSafeSAC:
             actor_loss = 0.0
             log_pi = 0.0
 
-        if self.lam_mode != 'learn':
+        if self.lam_mode != 'opt':
             self.actor.update_tem(self.critic_update_step)
 
         training_info = {

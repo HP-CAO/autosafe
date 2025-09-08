@@ -18,3 +18,4 @@ class JobConfig:
     """saving path for the running logs, models and etc"""
     output_path: str = ''
     experiment_name: str = 'base'
+    env_name:str = 'cartpole'

@@ -77,7 +77,6 @@ def evaluate(agent, env, cfg):
     eval_return = []
     eval_length = []
 
-
     for _ in range(cfg.GymParams.TaskParams.num_episodes_to_run):
         obs, _ = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
 

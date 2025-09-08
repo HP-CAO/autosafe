@@ -2,7 +2,7 @@ import os
 import sys
 import hydra
 import dataclasses
-
+import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from gym_env.cartpole.cart_pole import CartPoleEnv, CartPoleGymConfig
@@ -25,16 +25,15 @@ class AllConfig:
 @hydra.main(version_base=None, config_path="../config", config_name='CartpoleBase')
 def run(cfg: AllConfig) -> None:
     setup_environment(cfg)
-    cfg.JobParams.output_path = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    run_name = f"{cfg.JobParams.env_name}/{cfg.JobParams.job_name}/seed_{cfg.JobParams.seed}/{timestamp}"
+    cfg.JobParams.output_path = os.path.join("outputs", run_name)
     seed_everything(cfg.JobParams.seed)
-    writer = SummaryWriter(os.path.join(cfg.JobParams.output_path, cfg.JobParams.job_name))
+    writer = SummaryWriter(cfg.JobParams.output_path)
     env = CartPoleEnv(cfg.GymParams)
-
     from agent.OffPolicyRL.SAC import SACAgent
     from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
     from agent.model_based.model_based_design_cartpole import MATRIX_P, F, ModelbasedAgent
-    from agent.OnPolicyRL.PPO_AutoSafe import AutoSafePPO
-    from agent.OnPolicyRL.PPO import PPOAgent
 
     if cfg.JobParams.experiment_name == 'sac_base':
         from job.experiments.off_policy_base import train
@@ -44,31 +43,13 @@ def run(cfg: AllConfig) -> None:
         agent = SACAgent(cfg.SACParams, observation_dim + n_s,env.action_space.shape[0])
         train(agent, env, writer, cfg)
 
-    elif cfg.JobParams.experiment_name == 'ppo_base':
-        from job.experiments.on_policy_base import train
-        observation_dim = env.observation_space.shape[0]
-        agent = PPOAgent(cfg.PPOParams, observation_dim, env.action_space.shape[0])
-        buffer = RolloutBuffer(cfg.PPOParams.buffer_size, cfg.PPOParams.batch_size, env.observation_space.shape[0],
-                               env.action_space.shape[0])
-        train(agent, buffer, env, writer, cfg)
-
     elif cfg.JobParams.experiment_name == 'sac_autosafe':
         from job.experiments.off_policy_autosafe import train
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
-        agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F, case='cartpole')
+        agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F,
+                            lam_mode=cfg.SACParams.autosafe_lam_mode)
         train(agent, env, writer, cfg)
-
-    elif cfg.JobParams.experiment_name == 'ppo_autosafe':
-        from job.experiments.on_policy_autosafe import train
-        observation_dim = env.observation_space.shape[0]
-        n_s = MATRIX_P.shape[0]
-        agent = AutoSafePPO(cfg.PPOParams, observation_dim + n_s,
-                            env.action_space.shape[0], MATRIX_P, F, case='cartpole')
-        buffer = RolloutBuffer(cfg.PPOParams.buffer_size, cfg.PPOParams.batch_size, observation_dim + n_s,
-                               env.action_space.shape[0])
-        train(agent, buffer, env, writer, cfg)
-
     elif cfg.JobParams.experiment_name == 'model_based':
         from job.experiments.model_based import evaluate
         evaluate(ModelbasedAgent(), env, writer, cfg, 0)
@@ -101,7 +82,7 @@ def run(cfg: AllConfig) -> None:
         rl_agent = SACAgentLag(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], lag_factor=0.5)
         safe_agent = ModelbasedAgent()
         train(rl_agent, safe_agent, env, writer, cfg)
-    elif cfg.JobParams.experiment_name == 'sac_lam_opt':
+    elif cfg.JobParams.experiment_name == 'sac_lam':
         from job.experiments.off_policy_lam import train
         from agent.OffPolicyRL.SAC_Lam import SACAgentLam
         observation_dim = env.observation_space.shape[0]
@@ -109,17 +90,7 @@ def run(cfg: AllConfig) -> None:
         safe_agent = ModelbasedAgent()
         # we need to include the value of lam to make the mdp stationary
         rl_agent = SACAgentLam(cfg.SACParams, observation_dim + n_s + 1, env.action_space.shape[0], safe_agent=safe_agent)
-        train(rl_agent, safe_agent, env, writer, cfg, mode='opt')
-        train(rl_agent, safe_agent, env, writer, cfg, mode='linear')
-    elif cfg.JobParams.experiment_name == 'sac_lam_linear':
-        from job.experiments.off_policy_lam import train
-        from agent.OffPolicyRL.SAC_Lam import SACAgentLam
-        observation_dim = env.observation_space.shape[0]
-        n_s = MATRIX_P.shape[0]
-        safe_agent = ModelbasedAgent()
-        # we need to include the value of lam to make the mdp stationary
-        rl_agent = SACAgentLam(cfg.SACParams, observation_dim + n_s + 1, env.action_space.shape[0], safe_agent=safe_agent)
-        train(rl_agent, safe_agent, env, writer, cfg, mode='linear')
+        train(rl_agent, safe_agent, env, writer, cfg, mode=cfg.SACParams.sac_lam_mode)
     else:
         print("Experiment name not recognized. Please check the configuration.")
 

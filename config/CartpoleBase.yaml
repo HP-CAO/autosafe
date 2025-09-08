@@ -22,7 +22,7 @@ GymParams:
     control_goal_theta: 0.0
     max_episode_steps: 500
     evaluation_period: 10000
-    num_episodes_to_run: 10
+    num_episodes_to_run: 1
     task_reset_mode: random
     change_dynamics: false
     context_horizon: 10
@@ -61,6 +61,8 @@ SACParams:
   - 256
   actor_activation: relu
   critic_activation: relu
+  autosafe_lam_mode: opt
+  sac_lam_mode: opt
 PPOParams:
   agent_name: PPO
   mode: train
@@ -94,4 +96,5 @@ JobParams:
   seed: 1
   capture_video: false
   output_path: ''
-  experiment_name: 'base'
+  experiment_name: 'sac_base'
+  env_name: 'cartpole'

@@ -35,6 +35,8 @@ class SACConfig:
     critic_hidden_units: list = field(default_factory=lambda: [256, 256])
     actor_activation: str = 'relu'
     critic_activation: str = 'relu'
+    sac_lam_mode:str = 'opt'
+    autosafe_lam_mode:str = 'opt'
 
 
 def build_mlp(input_layer, hidden_units, activation, use_layer_norm=False):

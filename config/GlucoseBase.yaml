@@ -13,7 +13,7 @@ GymParams:
     - 0.0
     max_episode_steps: 200
     evaluation_period: 10000
-    num_episodes_to_run: 3
+    num_episodes_to_run: 1
     task_reset_mode: random
     change_dynamics: false
   SimulationParams: {}
@@ -42,6 +42,8 @@ SACParams:
   - 256
   actor_activation: relu
   critic_activation: relu
+  autosafe_lam_mode: opt
+  sac_lam_mode: opt
 PPOParams:
   agent_name: PPO
   mode: train
@@ -76,3 +78,4 @@ JobParams:
   capture_video: false
   output_path: ''
   experiment_name: sac_autosafe
+  env_name: 'glucose'

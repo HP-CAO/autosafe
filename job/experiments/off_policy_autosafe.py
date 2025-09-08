@@ -1,5 +1,4 @@
 import copy
-import time
 
 from agent.OffPolicyRL.ReplayBuffer import ReplayMemory
 from agent.utils import log_info, setup_logger
@@ -13,6 +12,8 @@ def train(agent, env, writer, cfg):
     replay_mem = ReplayMemory(size=cfg.SACParams.replay_buffer_size)
     progress = tqdm(total=cfg.SACParams.total_training_steps)
     evaluate_flag = False
+    ep = 0
+    accumulated_term = 0
 
     while global_step < cfg.SACParams.total_training_steps:
         obs, _ = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
@@ -22,9 +23,6 @@ def train(agent, env, writer, cfg):
 
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
-            # if global_step < cfg.SACParams.learning_starts:  # in autosafe we don't need to use random action for exploration
-            #     action = env.action_space.sample().squeeze()
-            # else:
             action = agent.get_action(obs_aug, mode='train').squeeze()
 
             next_obs, rewards, terminations, truncations, infos = env.step(action)
@@ -50,10 +48,12 @@ def train(agent, env, writer, cfg):
                 agent.save_weights(cfg.JobParams.output_path + '/agent_model/')
 
             if terminations:
+                accumulated_term += 1
                 break
 
+        ep += 1
         if evaluate_flag:
-            evaluate(agent, env, writer, cfg, global_step)
+            evaluate(agent, env, writer, cfg, global_step, ep)
             evaluate_flag = False
 
         training_info['episodic_return'] = sum(episodic_return)
@@ -63,9 +63,11 @@ def train(agent, env, writer, cfg):
         progress.set_description(f"Step: {global_step}, Return: {training_info['episodic_return']:.2f}")
         writer.add_scalar("training/episodic_return", training_info['episodic_return'], global_step)
         writer.add_scalar("training/episodic_length", training_info['episodic_length'], global_step)
+        # episode based logging
+        writer.add_scalar("training/episodic_return_ep", training_info['episodic_return'], ep)
+        writer.add_scalar("training/termination", accumulated_term, ep)
 
-
-def evaluate(agent, env, writer, cfg, global_step):
+def evaluate(agent, env, writer, cfg, global_step, global_episode):
     logger.info("Start evaluating the agent...")
     multi_rollout_return = []
     multi_rollout_performance = []
@@ -107,3 +109,4 @@ def evaluate(agent, env, writer, cfg, global_step):
     writer.add_scalar("evaluation/episodic_cv", returns_cv, global_step)
     writer.add_scalar("evaluation/performance_mean", performance_mean, global_step)
     writer.add_scalar("evaluation/performance_std", performance_std, global_step)
+    writer.add_scalar("evaluation/episodic_return_ep", return_mean, global_episode)

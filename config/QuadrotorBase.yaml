@@ -97,6 +97,8 @@ SACParams:
   - 256
   actor_activation: relu
   critic_activation: relu
+  autosafe_lam_mode: opt
+  sac_lam_mode: opt
 PPOParams:
   agent_name: PPO
   mode: train
@@ -131,3 +133,4 @@ JobParams:
   capture_video: false
   output_path: ''
   experiment_name: sac_base
+  env_name: 'quadrotor'
