@@ -84,7 +84,8 @@ def get_action_mean(action_mean_learn, action_safe, lam):
     return action
 
 class AutoSafeSAC:
-    def __init__(self, params: SACConfig, shape_observations, shape_action, P_matrix, F_matrix, mode='train', lam_mode='opt'):
+    def __init__(self, params: SACConfig, shape_observations, shape_action, P_matrix, F_matrix,
+                 mode='train', lam_mode='opt', tem_min=1.0, tem_max=25.0):
         self.params = params
         self.shape_action = shape_action
         self.critic_update_step = 0
@@ -92,17 +93,17 @@ class AutoSafeSAC:
 
         if self.lam_mode == 'opt':
             from agent.AutoSafe import AutoSafeActor
-            self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN)
+            self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN, tem_min, tem_max)
         elif self.lam_mode == 'linear':
             from agent.AutoSafe import AutoSafeActorSchedule
             self.actor = AutoSafeActorSchedule(shape_action, P_matrix,
                                                F_matrix, LOG_STD_MAX, LOG_STD_MIN, schedule_type="linear",
-                                               total_steps=int(self.params.total_training_steps * 0.9))
+                                               total_steps=int(self.params.total_training_steps * 0.5))
         else:
             from agent.AutoSafe import AutoSafeActorSchedule
             self.actor = AutoSafeActorSchedule(shape_action, P_matrix,
                                                F_matrix, LOG_STD_MAX, LOG_STD_MIN, schedule_type="exp",
-                                               total_steps=int(self.params.total_training_steps * 0.9))
+                                               total_steps=int(self.params.total_training_steps * 0.5))
 
         self.critic = build_critic(shape_observations + shape_action, 1, params, name="critic_")
         self.critic_target = build_critic(shape_observations + shape_action, 1, params, name="critic_target_")

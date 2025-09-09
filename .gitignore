@@ -88,3 +88,4 @@ __pycache__
 .so
 __pycache__/
 /wandb
+/results

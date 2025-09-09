@@ -29,7 +29,6 @@ class Config():
     ControlParams: ControlConfig = dataclasses.field(default_factory=ControlConfig)
     JobParams: JobConfig = dataclasses.field(default_factory=JobConfig)
 
-
 @hydra.main(version_base=None, config_path="../config/QuadrupedConfig", config_name='base_config')
 def run(cfg: Config) -> None:
     from omegaconf import OmegaConf

@@ -82,11 +82,17 @@ class Glucose(gym.Env):
         self.action_penalty = action_penalty
         self.render_mode = render_mode
         self.max_steps = max_steps
-        # model parameters
+        # model parameters estimated values
+        # model_paras = {
+        #     'Gb': 138, 'Ib': 7, 'n': 0.2814, 'p1': 0,
+        #     'p2': 0.0142, 'p3': 15e-6, 'D0': 4, 'dt': 10
+        # }
+        # model parameters true values
         model_paras = {
-            'Gb': 138, 'Ib': 7, 'n': 0.2814, 'p1': 0,
-            'p2': 0.0142, 'p3': 15e-6, 'D0': 4, 'dt': 10
+            'Gb': 138, 'Ib': 7, 'n': 0.25, 'p1': 0,
+            'p2': 0.015, 'p3': 10e-6, 'D0': 4, 'dt': 10
         }
+
         # custom parameters
         for key, val in reset_paras(model_paras, altered_paras).items():
             exec(f'self.{key}={val}')

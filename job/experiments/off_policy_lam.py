@@ -65,7 +65,7 @@ def pretrain_lam(rl_agent, safe_agent, env, writer, cfg):
             next_obs, rewards, terminations, truncations, infos = env.step(safe_action)
 
             # pretraining lam to predict a value close to 1,
-            pretrain_buffer.add([obs_aug, np.array([0.98])])
+            pretrain_buffer.add([obs_aug, np.array([0.95])])
 
             if terminations:
                 break

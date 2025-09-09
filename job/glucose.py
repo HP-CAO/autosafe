@@ -12,6 +12,7 @@ from agent.utils import seed_everything, setup_environment, setup_logger
 from tensorboardX import SummaryWriter
 from agent.OnPolicyRL.PPO import PPOConfig, PPOAgent, RolloutBuffer
 logger = setup_logger()
+import datetime
 
 @dataclasses.dataclass
 class AllConfig:
@@ -24,9 +25,11 @@ class AllConfig:
 @hydra.main(version_base=None, config_path="../config", config_name='GlucoseBase')
 def run(cfg: AllConfig) -> None:
     setup_environment(cfg)
-    cfg.JobParams.output_path = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    run_name = f"{cfg.JobParams.env_name}/{cfg.JobParams.job_name}/seed_{cfg.JobParams.seed}/{timestamp}"
+    cfg.JobParams.output_path = os.path.join("outputs", run_name)
     seed_everything(cfg.JobParams.seed)
-    writer = SummaryWriter(os.path.join(cfg.JobParams.output_path, cfg.JobParams.job_name))
+    writer = SummaryWriter(cfg.JobParams.output_path)
     env = Glucose()
 
     from agent.OffPolicyRL.SAC import SACAgent
@@ -46,7 +49,7 @@ def run(cfg: AllConfig) -> None:
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F,
-                            lam_mode=cfg.SACParams.autosafe_lam_mode)
+                            lam_mode=cfg.SACParams.autosafe_lam_mode, tem_min=1.0, tem_max=5.0)
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'model_based':
         from job.experiments.model_based import evaluate

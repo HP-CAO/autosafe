@@ -20,11 +20,15 @@ def train(rl_agent, safe_agent, env, writer, cfg):
         episodic_return = []
         tracking_error = env.state - env.model_based_equilibrium
         obs_aug = np.append(obs, tracking_error)
-
+        safe_steps = 0
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
             if safe_agent.safety_switch_on(tracking_error):
+                safe_steps = 10
+
+            if safe_steps > 0:
                 action = safe_agent.get_action(tracking_error).squeeze()
+                safe_steps -= 1
             else:
                 action = rl_agent.get_action(obs_aug, mode='train').squeeze()
 
@@ -33,9 +37,7 @@ def train(rl_agent, safe_agent, env, writer, cfg):
 
             next_obs_aug = np.append(next_obs, tracking_error)
 
-            if not safe_agent.safety_switch_on(tracking_error):
-                # add safe actions to the replay buffer might case distribution shift, making the logprob collapse
-                replay_mem.add([obs_aug, action, rewards, next_obs_aug, terminations])
+            replay_mem.add([obs_aug, action, rewards, next_obs_aug, terminations])
 
             obs_aug = copy.deepcopy(next_obs_aug)
             episodic_return.append(rewards)
@@ -90,11 +92,19 @@ def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, global_episode
             tracking_error = env.state - env.model_based_equilibrium
             obs_aug = np.append(obs, tracking_error)
 
+            safe_steps = 0
+
             for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
+
                 if safe_agent.safety_switch_on(tracking_error):
+                    safe_steps = 10
+
+                if safe_steps > 0:
                     action = safe_agent.get_action(tracking_error).squeeze()
+                    safe_steps -= 1
                 else:
-                    action = rl_agent.get_action(obs_aug, mode='test').squeeze()
+                    action = rl_agent.get_action(obs_aug, mode='train').squeeze()
+
                 next_obs, r, terminations, truncations, infos = env.step(action)
                 performance_score = env.get_performance_score()
                 accumulate_performance_score.append(performance_score)
