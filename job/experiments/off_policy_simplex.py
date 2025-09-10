@@ -24,7 +24,7 @@ def train(rl_agent, safe_agent, env, writer, cfg):
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
             if safe_agent.safety_switch_on(tracking_error):
-                safe_steps = 10
+                safe_steps = 5
 
             if safe_steps > 0:
                 action = safe_agent.get_action(tracking_error).squeeze()
@@ -97,7 +97,7 @@ def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, global_episode
             for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
                 if safe_agent.safety_switch_on(tracking_error):
-                    safe_steps = 10
+                    safe_steps = 5
 
                 if safe_steps > 0:
                     action = safe_agent.get_action(tracking_error).squeeze()

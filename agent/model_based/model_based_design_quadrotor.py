@@ -1,11 +1,11 @@
 import numpy as np
 import math
 ACTION_BOUND = 20.0 #todo double check action bound, to normalize the safe action space to [-1, 1], here we do it in the policy network due to the gravity compensation
-
+GRAVITY_COMPENSATION = (0.25 * 0.027 * 9.8) / ACTION_BOUND
 F = np.array([[ 0.0248  ,  0.0438 ,   0.0247 ,   0.0437 ,  -0.1761 ,  -0.0279  , -0.3900  ,  0.3906  ,  0.6271   ,-0.0126  ,  0.0126  ,  0.0216] ,
                        [-0.0248  , -0.0438 ,   0.0247 ,   0.0437 ,  -0.1761 ,  -0.0279  , -0.3900  , -0.3906  , -0.6271   ,-0.0126  , -0.0126  , -0.0216] ,
                        [-0.0248  , -0.0438 ,  -0.0247 ,  -0.0437 ,  -0.1761 ,  -0.0279  ,  0.3900  , -0.3906  ,  0.6271   , 0.0126  , -0.0126  ,  0.0216] ,
-                       [ 0.0248  ,  0.0438 ,  -0.0247 ,  -0.0437 ,  -0.1761 ,  -0.0279  ,  0.3900  ,  0.3906  , -0.6271   , 0.0126  ,  0.0126  , -0.0216] ])  # feedback law for the safe controller
+                       [ 0.0248  ,  0.0438 ,  -0.0247 ,  -0.0437 ,  -0.1761 ,  -0.0279  ,  0.3900  ,  0.3906  , -0.6271   , 0.0126  ,  0.0126  , -0.0216] ])/ACTION_BOUND  # feedback law for the safe controller
 
 MATRIX_P = np.array([[  0.1028 ,   0.1091 ,  -0.0000 ,  -0.0000 ,  -0.0000 ,  -0.0000 ,   0.0000  ,  0.4080 ,   0.0000 ,   0.0000 ,   0.0041,   -0.0000],
                      [  0.1091 ,   0.1897 ,  -0.0000 ,  -0.0000 ,  -0.0000 ,   0.0000 ,   0.0000  ,  0.7117 ,   0.0000 ,   0.0000 ,   0.0071,   -0.0000],
@@ -99,12 +99,12 @@ def get_init_condition_in_safety_envelope(n_points_per_dim=1):
 class ModelbasedAgent:
     def __init__(self, feedback_law=F):
         self.feedback_law = feedback_law
-        self.gravity_compensation = 0.25 * 0.027 * 9.8 # for each propeller
         self.matrix_P = MATRIX_P
 
     def get_action(self, tracking_error):
         # tracking_error env state - env control goal
-        action_abs = self.feedback_law @ (tracking_error) + self.gravity_compensation
+        action_abs = self.feedback_law @ (tracking_error) + GRAVITY_COMPENSATION
+        action_abs = np.clip(action_abs, -1, 1)
         return  action_abs
 
     def safety_switch_on(self, tracking_error):

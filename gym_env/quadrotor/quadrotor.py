@@ -258,7 +258,11 @@ class Quadrotor(BaseAviary):
                     self.TASK_INFO['stabilization_goal'][2], 0.0,
                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0
                 ])  # x = {x, x_dot, y, y_dot, z, z_dot, phi, theta, psi, p_body, q_body, r_body}.
-            self.model_based_equilibrium = self.X_GOAL
+            self.model_based_equilibrium = np.hstack([
+                    self.TASK_INFO['stabilization_goal'][0], 0.0,
+                    self.TASK_INFO['stabilization_goal'][1], 0.0,
+                    self.TASK_INFO['stabilization_goal'][2], 0.0,
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0])  # create task mismatch for model-based init cond
 
         elif self.TASK == Task.TRAJ_TRACKING:
             POS_REF, VEL_REF, _ = self._generate_trajectory(
@@ -451,11 +455,11 @@ class Quadrotor(BaseAviary):
         # Standard Gym return.
         obs = self._get_observation()
         rew = self._get_reward()
-        done = self._get_done()  # reach the goal or out of bound
+        done, crash = self._get_done()  # reach the goal or out of bound
         info = self._get_info()
         obs, rew, done, info = super().after_step(obs, rew, done, info)
         truncation = True if self.step_in_episode >= self.params.TaskParams.max_episode_steps else False
-        return obs, rew, done, truncation, info
+        return obs, rew, crash, truncation, info
 
     def render(self, mode='human'):
         '''Retrieves a frame from PyBullet rendering.
@@ -883,12 +887,12 @@ class Quadrotor(BaseAviary):
             done (bool): Whether an episode is over.
         '''
         # Done if goal reached for stabilization task with quadratic cost.
+        crash = False
         if self.TASK == Task.STABILIZATION:
             self.goal_reached = bool(
                 np.linalg.norm(self.state - self.X_GOAL) < self.TASK_INFO['stabilization_goal_tolerance'])
             if self.goal_reached:
-                return True
-
+                return True, crash
         # Done if state is out-of-bounds.
         if self.done_on_out_of_bound:
             if self.QUAD_TYPE == QuadType.ONE_D:
@@ -904,11 +908,12 @@ class Quadrotor(BaseAviary):
             self.out_of_bounds = np.any(self.out_of_bounds * mask)
             # Early terminate if needed.
             if self.out_of_bounds:
-                return True
+                crash = True
+                return True, crash
 
         self.out_of_bounds = False
 
-        return False
+        return False, crash
 
     def _get_info(self):
         '''Generates the info dictionary returned by every call to .step().

@@ -473,7 +473,6 @@ class BenchmarkEnv(gym.Env, ABC):
         # here we cache the constraint values `c_value`, so we only evaluate the constraints once,
         # but use it in 1) info dict; 2) check constraint violation; 3) check near constraint violation/almost active.
         # it also allows stateful constraint, where evaluation/update should only be done once per time step.
-        c_value = None
         if self.constraints is not None:
             c_value = self.constraints.get_values(self)
             info['constraint_values'] = c_value
@@ -481,6 +480,7 @@ class BenchmarkEnv(gym.Env, ABC):
                 info['constraint_violation'] = 1
                 if self.DONE_ON_VIOLATION:
                     done = True
+
             else:
                 info['constraint_violation'] = 0
         else:
@@ -502,6 +502,7 @@ class BenchmarkEnv(gym.Env, ABC):
         if self.ctrl_step_counter >= self.CTRL_STEPS:
             info['TimeLimit.truncated'] = not done
             done = True
+
         return obs, rew, done, info
 
     def _generate_trajectory(self,

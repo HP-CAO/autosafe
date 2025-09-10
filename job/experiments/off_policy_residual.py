@@ -101,7 +101,6 @@ def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, global_episode
                     break
 
             accumulated_r.append(sum(episodic_return))
-
         multi_rollout_return.append(np.mean(accumulated_r))
         multi_rollout_performance.append(np.mean(accumulate_performance_score))
 

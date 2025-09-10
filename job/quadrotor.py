@@ -2,7 +2,7 @@ import os
 import sys
 import hydra
 import dataclasses
-
+import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from gym_env.quadrotor.quadrotor import Quadrotor, QuadrotorGymConfig
@@ -26,14 +26,16 @@ class AllConfig:
 @hydra.main(version_base=None, config_path="../config", config_name='QuadrotorBase')
 def run(cfg: AllConfig) -> None:
     setup_environment(cfg)
-    cfg.JobParams.output_path = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    run_name = f"{cfg.JobParams.env_name}/{cfg.JobParams.job_name}/seed_{cfg.JobParams.seed}/{timestamp}"
+    cfg.JobParams.output_path = os.path.join("outputs", run_name)
     seed_everything(cfg.JobParams.seed)
-    writer = SummaryWriter(os.path.join(cfg.JobParams.output_path, cfg.JobParams.job_name))
+    writer = SummaryWriter(cfg.JobParams.output_path)
     env = Quadrotor(cfg.GymParams)
 
     from agent.OffPolicyRL.SAC import SACAgent
     from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
-    from agent.model_based.model_based_design_quadrotor import MATRIX_P, F, ModelbasedAgent
+    from agent.model_based.model_based_design_quadrotor import MATRIX_P, F, ModelbasedAgent, GRAVITY_COMPENSATION
 
     if cfg.JobParams.experiment_name == 'sac_base':
         from job.experiments.off_policy_base import train
@@ -48,7 +50,8 @@ def run(cfg: AllConfig) -> None:
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F,
-                            lam_mode=cfg.SACParams.autosafe_lam_mode)
+                            lam_mode=cfg.SACParams.autosafe_lam_mode, control_compensation=GRAVITY_COMPENSATION,
+                            )
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'model_based':
         from job.experiments.model_based import evaluate

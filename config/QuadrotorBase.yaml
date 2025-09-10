@@ -36,11 +36,11 @@ GymParams:
     cost_fn_type: rl_reward
     ctrl_freq: 50
     ini_states:
-      init_x: 2.2
+      init_x: 2.5
       init_x_dot: 0
-      init_y: 2.2
+      init_y: 2.5
       init_y_dot: 0
-      init_z: 2.2
+      init_z: 2.5
       init_z_dot: 0
       init_theta: 0
       init_theta_dot: 0
@@ -55,12 +55,12 @@ GymParams:
     constraint_penalty: -1.0
     disturbances: null
     adversary_disturbance: null
-    adversary_disturbance_offset: 0.0
-    adversary_disturbance_scale: 0.01
+    adversary_disturbance_offset: null
+    adversary_disturbance_scale: null
     max_episode_steps: 1000
     evaluation_period: 10000
     num_episodes_to_run: 1
-    task_reset_mode: random
+    task_reset_mode: null
     change_dynamics: false
     context_horizon: 10
   SimulationParams:
@@ -75,18 +75,18 @@ GymParams:
 SACParams:
   agent_name: SAC
   mode: train
-  soft_alpha: 0.005
+  soft_alpha: 0.01
   learning_rate_actor: 0.0003
   learning_rate_critic: 0.0003
   batch_size: 128
   target_network_frequency: 1
   noise_clip: 0.5
-  entropy_alpha: 0.05
+  entropy_alpha: 0.01
   gamma_discount: 0.99
   model_path: ''
   total_training_steps: 500000
   replay_buffer_size: 500000
-  learning_starts: 3000
+  learning_starts: 1000
   policy_update_frequency: 1
   use_layer_norm: false
   actor_hidden_units:
@@ -126,7 +126,7 @@ PPOParams:
   actor_activation: relu
   critic_activation: relu
 JobParams:
-  gpu: false
+  gpu: true
   job_name: ''
   run_mode: train
   seed: 1

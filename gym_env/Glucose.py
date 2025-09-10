@@ -89,8 +89,8 @@ class Glucose(gym.Env):
         # }
         # model parameters true values
         model_paras = {
-            'Gb': 138, 'Ib': 7, 'n': 0.25, 'p1': 0,
-            'p2': 0.015, 'p3': 10e-6, 'D0': 4, 'dt': 10
+            'Gb': 138, 'Ib': 7, 'n': 0.2, 'p1': 0,
+            'p2': 0.005, 'p3': 5e-6, 'D0': 4, 'dt': 10
         }
 
         # custom parameters
