@@ -35,7 +35,7 @@ def run(cfg: AllConfig) -> None:
 
     from agent.OffPolicyRL.SAC import SACAgent
     from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
-    from agent.model_based.model_based_design_quadrotor import MATRIX_P, F, ModelbasedAgent, GRAVITY_COMPENSATION
+    from agent.model_based.model_based_design_quadrotor import MATRIX_P, F, ModelbasedAgent
 
     if cfg.JobParams.experiment_name == 'sac_base':
         from job.experiments.off_policy_base import train
@@ -50,8 +50,8 @@ def run(cfg: AllConfig) -> None:
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F,
-                            lam_mode=cfg.SACParams.autosafe_lam_mode, control_compensation=GRAVITY_COMPENSATION,
-                            )
+                            lam_mode=cfg.SACParams.autosafe_lam_mode,
+                            tem_min=1, tem_max=25)
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'model_based':
         from job.experiments.model_based import evaluate
@@ -69,7 +69,8 @@ def run(cfg: AllConfig) -> None:
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
         safe_agent = ModelbasedAgent()
-        train(rl_agent, safe_agent, env, writer, cfg)
+        # in high frequency control tasks, we found that applying safe policy for multiple steps once triggered works better
+        train(rl_agent, safe_agent, env, writer, cfg, safe_policy_steps=10)
     elif cfg.JobParams.experiment_name == 'sac_lyapunov':
         from job.experiments.off_policy_lyapunov import train
         observation_dim = env.observation_space.shape[0]

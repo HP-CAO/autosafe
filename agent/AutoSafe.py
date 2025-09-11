@@ -4,7 +4,7 @@ from tensorflow.keras import Model
 
 class AutoSafeActor(Model):
 
-    def __init__(self, shape_action, P_matrix, F_matrix, log_std_max=2, log_std_min=-5, tem_min=1.0, tem_max=25.0, control_compensation=0.0):
+    def __init__(self, shape_action, P_matrix, F_matrix, log_std_max=2, log_std_min=-5, tem_min=1.0, tem_max=25.0):
         super(AutoSafeActor, self).__init__()
 
         self.feature_dense_1 = Dense(256, activation='relu', name='feature_dense_1')
@@ -21,7 +21,6 @@ class AutoSafeActor(Model):
         self.tem_max = tem_max
         self.log_std_max = log_std_max
         self.log_std_min = log_std_min
-        self.control_compensation = control_compensation # this is for the
 
     def call(self, inputs):
         input_state = inputs[:, -self.n_s:]  # Assuming the first n_s dimensions are the state
@@ -35,7 +34,7 @@ class AutoSafeActor(Model):
         log_std_learn = self.std_layer(x)
         log_std_learn = self.log_std_min + 0.5 * (self.log_std_max - self.log_std_min) * (log_std_learn + 1)
         input_state_transpose = tf.transpose(input_state_expand, perm=[0, 2, 1])  # Transpose for matrix multiplication
-        action_safe = tf.clip_by_value(self.F_matrix @ input_state_transpose + self.control_compensation, -1, 1)  # Clip the action to [-1, 1]
+        action_safe = tf.clip_by_value(self.F_matrix @ input_state_transpose, -1, 1)  # Clip the action to [-1, 1]
         action_safe = tf.squeeze(action_safe, axis=-1)  # Remove the extra dimension
         safe_z = input_state_expand @ self.P_matrix @ input_state_transpose
         safe_z = tf.clip_by_value(tf.squeeze(safe_z, axis=1), 0 ,1)
@@ -45,7 +44,7 @@ class AutoSafeActor(Model):
 
 class AutoSafeActorSchedule(Model):
     def __init__(self, shape_action, P_matrix, F_matrix, log_std_max=2, log_std_min=-5, tem_min=1.0, tem_max=25.0,
-                 total_steps=500000, schedule_type="linear", tau=5000, control_compensation=0.0):
+                 total_steps=500000, schedule_type="linear", tau=5000):
         super(AutoSafeActorSchedule, self).__init__()
 
         # networks
@@ -71,7 +70,6 @@ class AutoSafeActorSchedule(Model):
         self.log_std_max = log_std_max
         self.log_std_min = log_std_min
         self.tem = tf.Variable(initial_value=1.0)  # minimum value is 1.0
-        self.control_compensation = control_compensation
 
     def update_tem(self, step):
         """Monotonically INCREASING temperature from tem_min -> tem_max."""
@@ -109,7 +107,7 @@ class AutoSafeActorSchedule(Model):
 
         # safe action
         input_state_transpose = tf.transpose(input_state_expand, perm=[0, 2, 1])
-        action_safe = tf.clip_by_value(tf.matmul(self.F_matrix, input_state_transpose) + self.control_compensation, -1, 1)
+        action_safe = tf.clip_by_value(tf.matmul(self.F_matrix, input_state_transpose), -1, 1)
         action_safe = tf.squeeze(action_safe, axis=-1)
 
         # scheduled temperature

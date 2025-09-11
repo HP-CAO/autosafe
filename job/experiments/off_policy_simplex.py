@@ -6,7 +6,7 @@ from tqdm import tqdm
 import numpy as np
 logger = setup_logger()
 
-def train(rl_agent, safe_agent, env, writer, cfg):
+def train(rl_agent, safe_agent, env, writer, cfg, safe_policy_steps=5):
     training_info = {}
     global_step = 0
     replay_mem = ReplayMemory(size=cfg.SACParams.replay_buffer_size)
@@ -21,10 +21,12 @@ def train(rl_agent, safe_agent, env, writer, cfg):
         tracking_error = env.state - env.model_based_equilibrium
         obs_aug = np.append(obs, tracking_error)
         safe_steps = 0
+        triggered_time= 0
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
             if safe_agent.safety_switch_on(tracking_error):
-                safe_steps = 5
+                safe_steps = safe_policy_steps
+                triggered_time += 1
 
             if safe_steps > 0:
                 action = safe_agent.get_action(tracking_error).squeeze()
@@ -59,9 +61,10 @@ def train(rl_agent, safe_agent, env, writer, cfg):
                 break
 
         ep += 1
+        print(f"safety triggered times: {triggered_time}")
 
         if evaluate_flag:
-            evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, ep)
+            evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, ep, safe_policy_steps)
             evaluate_flag = False
 
         training_info['episodic_return'] = sum(episodic_return)
@@ -71,12 +74,14 @@ def train(rl_agent, safe_agent, env, writer, cfg):
         progress.set_description(f"Step: {global_step}, Return: {training_info['episodic_return']:.2f}")
         writer.add_scalar("training/episodic_return", training_info['episodic_return'], global_step)
         writer.add_scalar("training/episodic_length", training_info['episodic_length'], global_step)
+        writer.add_scalar("training/safety_trigger_time", triggered_time, global_step)
 
         # episode based logging
         writer.add_scalar("training/episodic_return_ep", training_info['episodic_return'], ep)
-        writer.add_scalar("training/termination", accumulated_term, ep)
+        writer.add_scalar("training/termination_ep", accumulated_term, ep)
+        writer.add_scalar("training/termination_steps", accumulated_term, global_step)
 
-def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, global_episode):
+def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, global_episode, safe_policy_steps):
     logger.info("Start evaluating the agent...")
     multi_rollout_return = []
     multi_rollout_performance = []
@@ -97,7 +102,7 @@ def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, global_episode
             for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
                 if safe_agent.safety_switch_on(tracking_error):
-                    safe_steps = 5
+                    safe_steps = safe_policy_steps
 
                 if safe_steps > 0:
                     action = safe_agent.get_action(tracking_error).squeeze()

@@ -67,7 +67,7 @@ def run(cfg: AllConfig) -> None:
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
         safe_agent = ModelbasedAgent()
-        train(rl_agent, safe_agent, env, writer, cfg)
+        train(rl_agent, safe_agent, env, writer, cfg, safe_policy_steps=5)
     elif cfg.JobParams.experiment_name == 'sac_lyapunov':
         from job.experiments.off_policy_lyapunov import train
         observation_dim = env.observation_space.shape[0]

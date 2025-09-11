@@ -72,7 +72,8 @@ def train(rl_agent, safe_agent, env, writer, cfg):
 
         # episode based logging
         writer.add_scalar("training/episodic_return_ep", training_info['episodic_return'], ep)
-        writer.add_scalar("training/termination", accumulated_term, ep)
+        writer.add_scalar("training/termination_ep", accumulated_term, ep)
+        writer.add_scalar("training/termination_steps", accumulated_term, global_step)
 
 def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, global_episode):
     logger.info("Start evaluating the agent...")

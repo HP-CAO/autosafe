@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SEEDS=(3, 4)
+SEEDS=(4 5)
 MAX_STEPS=200000
 LOG_ROOT="outputs"
 ENV_NAME='cartpole'
@@ -89,7 +89,7 @@ done
 echo "All seeds done for glucose."
 
 
-SEEDS=(1,2,3,4,5)
+SEEDS=(1 2 3 4 5)
 MAX_STEPS=1000000
 LOG_ROOT="outputs"
 ENV_NAME='quadrotor'

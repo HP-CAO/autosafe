@@ -122,7 +122,7 @@ class SACAgentLam:
         self.optimizer_actor = tf.keras.optimizers.Adam(learning_rate=self.params.learning_rate_actor)
         self.optimizer_critic = tf.keras.optimizers.Adam(learning_rate=self.params.learning_rate_critic)
         self.optimizer_critic_2 = tf.keras.optimizers.Adam(learning_rate=self.params.learning_rate_critic)
-        self.optimizer_lam_network = tf.keras.optimizers.Adam(learning_rate=self.params.learning_rate_actor)  # update lam network slowly
+        self.optimizer_lam_network = tf.keras.optimizers.Adam(learning_rate=5e-6)  # update lam network slowly
         self.safe_agent = safe_agent
         self.n_s = self.safe_agent.matrix_P.shape[0]
         self.F_matrix = tf.cast(self.safe_agent.feedback_law, tf.float32)
@@ -252,7 +252,7 @@ class SACAgentLam:
             action = (1 - lam) * rl_action + lam * safe_action
             critic_input = tf.concat([ob1, action], axis=-1)
             min_q_value = tf.minimum(self.critic(critic_input), self.critic_2(critic_input))
-            lam_loss = tf.reduce_mean(self.params.entropy_alpha * log_pi - min_q_value)
+            lam_loss = tf.reduce_mean(-min_q_value)
         lam_gradients = tape.gradient(lam_loss, self.actor.trainable_variables)
         self.optimizer_lam_network.apply_gradients(zip(lam_gradients, self.actor.trainable_variables))
         return lam_loss

@@ -1,7 +1,7 @@
 import numpy as np
 import math
-ACTION_BOUND = 20.0 #todo double check action bound, to normalize the safe action space to [-1, 1], here we do it in the policy network due to the gravity compensation
-GRAVITY_COMPENSATION = (0.25 * 0.027 * 9.8) / ACTION_BOUND
+ACTION_BOUND = 1.0  #todo double check action bound, to normalize the safe action space to [-1, 1], here we do it in the policy network due to the gravity compensation
+# GRAVITY_COMPENSATION = (0.25 * 0.027 * 9.8) / ACTION_BOUND
 F = np.array([[ 0.0248  ,  0.0438 ,   0.0247 ,   0.0437 ,  -0.1761 ,  -0.0279  , -0.3900  ,  0.3906  ,  0.6271   ,-0.0126  ,  0.0126  ,  0.0216] ,
                        [-0.0248  , -0.0438 ,   0.0247 ,   0.0437 ,  -0.1761 ,  -0.0279  , -0.3900  , -0.3906  , -0.6271   ,-0.0126  , -0.0126  , -0.0216] ,
                        [-0.0248  , -0.0438 ,  -0.0247 ,  -0.0437 ,  -0.1761 ,  -0.0279  ,  0.3900  , -0.3906  ,  0.6271   , 0.0126  , -0.0126  ,  0.0216] ,
@@ -103,7 +103,7 @@ class ModelbasedAgent:
 
     def get_action(self, tracking_error):
         # tracking_error env state - env control goal
-        action_abs = self.feedback_law @ (tracking_error) + GRAVITY_COMPENSATION
+        action_abs = self.feedback_law @ (tracking_error)
         action_abs = np.clip(action_abs, -1, 1)
         return  action_abs
 

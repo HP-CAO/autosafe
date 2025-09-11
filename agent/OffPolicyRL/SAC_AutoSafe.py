@@ -93,19 +93,17 @@ class AutoSafeSAC:
 
         if self.lam_mode == 'opt':
             from agent.AutoSafe import AutoSafeActor
-            self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN, tem_min, tem_max, control_compensation)
+            self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN, tem_min, tem_max)
         elif self.lam_mode == 'linear':
             from agent.AutoSafe import AutoSafeActorSchedule
             self.actor = AutoSafeActorSchedule(shape_action, P_matrix,
                                                F_matrix, LOG_STD_MAX, LOG_STD_MIN, schedule_type="linear",
-                                               total_steps=int(self.params.total_training_steps * 0.5),
-                                               control_compensation=control_compensation)
+                                               total_steps=int(self.params.total_training_steps * 0.8))
         else:
             from agent.AutoSafe import AutoSafeActorSchedule
             self.actor = AutoSafeActorSchedule(shape_action, P_matrix,
                                                F_matrix, LOG_STD_MAX, LOG_STD_MIN, schedule_type="exp",
-                                               total_steps=int(self.params.total_training_steps * 0.5),
-                                               control_compensation=control_compensation)
+                                               total_steps=int(self.params.total_training_steps * 0.8))
 
         self.critic = build_critic(shape_observations + shape_action, 1, params, name="critic_")
         self.critic_target = build_critic(shape_observations + shape_action, 1, params, name="critic_target_")
