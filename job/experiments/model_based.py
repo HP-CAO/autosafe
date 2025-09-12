@@ -13,15 +13,21 @@ def evaluate(agent, env, writer, cfg, global_step):
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
             tracking_error = env.state - env.model_based_equilibrium
             action = agent.get_action(tracking_error).squeeze()
-            _, r, terminations, truncations, infos = env.step(action)
+            _, r, terminations, trunc, infos = env.step(action)
             episodic_return.append(r)
+
             if terminations:
+                break
+
+            if trunc:  # we use this for quadruped done
                 break
 
         accumulated_return_list.append(sum(episodic_return))
         episode_length_list.append(len(episodic_return))
     # env.render()
     # task_result_plot = env.plot_task_result(all_task_info_list)
+
+
     return_mean = np.mean(accumulated_return_list)
     return_std = np.std(accumulated_return_list)
     returns_cv = return_std / return_mean  # coefficient of variation (dimensionless)
@@ -32,3 +38,7 @@ def evaluate(agent, env, writer, cfg, global_step):
     writer.add_scalar("evaluation/episodic_cv", returns_cv, global_step)
     print("ave_episodic_reward", return_mean)
     print("ave_episodic_length", episode_length_mean)
+    try:
+        env.save_trajectory(cfg.JobParams.output_path + f'{global_step}_traj.png', total_reward=return_mean)
+    except:
+        pass

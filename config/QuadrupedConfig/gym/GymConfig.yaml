@@ -22,7 +22,7 @@ GymParams:
     control_goal_theta: 0.0
     max_episode_steps: 500
     evaluation_period: 10000
-    num_episodes_to_run: 10
+    num_episodes_to_run: 1
     task_reset_mode: random
     change_dynamics: false
     context_horizon: 10

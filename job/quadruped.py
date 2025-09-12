@@ -15,7 +15,7 @@ from gym_env.quad_gym.simulator.setup_pybullet import setup_pybullet
 from gym_env.quad_gym.robot.locomotion_controller_mpc import LocomotionController
 
 logger = setup_logger()
-
+import datetime
 
 @dataclasses.dataclass
 class ControlConfig:
@@ -35,22 +35,26 @@ def run(cfg: Config) -> None:
     OmegaConf.set_struct(cfg, False)
     cfg.JobParams = cfg.edge["JobParams"]
     setup_environment(cfg)
-    cfg.JobParams.output_path = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    run_name = f"{cfg.JobParams.env_name}/{cfg.JobParams.job_name}/seed_{cfg.JobParams.seed}/{timestamp}"
+    cfg.JobParams.output_path = os.path.join("outputs", run_name)
     seed_everything(cfg.JobParams.seed)
-    writer = SummaryWriter(os.path.join(cfg.JobParams.output_path, cfg.JobParams.job_name))
-    observation_dim = 12
+    writer = SummaryWriter(cfg.JobParams.output_path)
+
+    observation_dim = 18
     shape_action = 6
 
     envs_cfg = cfg.envs.simulator
     robot_cfg = cfg.envs.robot
     cfg.SACParams = cfg.edge["SACParams"]
     cfg.GymParams = cfg.gym["GymParams"]
-    p = setup_pybullet(envs_cfg)
-    cfg.GymParams.TaskParams.max_episode_steps = 2000
+    cfg.GymParams.TaskParams.max_episode_steps = 500
+
+    p = setup_pybullet(envs_cfg, enable_gui=False)
 
     from agent.OffPolicyRL.SAC import SACAgent
     from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
-    from agent.model_based.model_based_design_quadruped import MATRIX_P, ModelbasedAgent
+    from agent.model_based.model_based_design_quadruped import MATRIX_P, ModelbasedAgent, F, ACTION_BOUND
 
     env = a1.A1(
         pybullet_client=p,
@@ -61,6 +65,7 @@ def run(cfg: Config) -> None:
         stance_params=robot_cfg.stance_controller,
         motor_params=robot_cfg.motor_group,
         vel_estimator_params=robot_cfg.com_velocity_estimator,
+        action_bound=ACTION_BOUND
     )
 
     mpc_controller = LocomotionController(
@@ -79,7 +84,6 @@ def run(cfg: Config) -> None:
     env.mpc_controller=mpc_controller
     # robot.reset()
 
-
     if cfg.JobParams.experiment_name == 'sac_base':
         from job.experiments.off_policy_base import train
         
@@ -90,17 +94,14 @@ def run(cfg: Config) -> None:
 
     elif cfg.JobParams.experiment_name == 'sac_autosafe':
         from job.experiments.off_policy_autosafe import train
-        
         n_s = MATRIX_P.shape[0]
-        agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, shape_action, MATRIX_P, F,
-                            lam_mode=cfg.SACParams.autosafe_lam_mode)
+        agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, shape_action, MATRIX_P, F, lam_mode=cfg.SACParams.autosafe_lam_mode)
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'model_based':
         from job.experiments.model_based import evaluate
         evaluate(ModelbasedAgent(), env, writer, cfg, 0)
     elif cfg.JobParams.experiment_name == 'sac_residual':
         from job.experiments.off_policy_residual import train
-        
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, shape_action)
         safe_agent = ModelbasedAgent()

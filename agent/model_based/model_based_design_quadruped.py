@@ -1,19 +1,21 @@
 import numpy as np
 import math
 
-ACTION_BOUND = 20.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
+ACTION_BOUND = 10.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
 
 
-MATRIX_P = np.array([[122.164786064669, 0, 0, 0, 2.48716597374493, 0, 0, 0, 0, 0],
-                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                     [0, 0, 0, 480.62107526958, 0, 0, 0, 0, 0, 155.295455907449],
-                     [2.48716597374493, 0, 0, 0, 3.21760325418695, 0, 0, 0, 0, 0],
-                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                     [0, 0, 0, 155.295455907449, 0, 0, 0, 0, 0, 156.306807893237]])
+MATRIX_P = np.array([[0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0,0,122.164786064669, 0, 0, 0, 2.48716597374493, 0, 0, 0, 0, 0],
+                     [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [0,0,0, 0, 0, 480.62107526958, 0, 0, 0, 0, 0, 155.295455907449],
+                     [0,0,2.48716597374493, 0, 0, 0, 3.21760325418695, 0, 0, 0, 0, 0],
+                     [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                     [0,0,0, 0, 0, 155.295455907449, 0, 0, 0, 0, 0, 156.306807893237]])
 
 KP = np.array([[-0., -0., -0., -0., -0., -0.],
                [-0., -0., -0., -0., -0., -0.],
@@ -30,15 +32,10 @@ KD = np.array([[35., -0., 0., 0., 0., 0.],
                [-0., 0., 0., 0., 69., -0.],
                [-0., 0., 0., 0., 0., 68.]])
 
+F = -1 * np.concatenate((KP, KD), axis=1) / ACTION_BOUND  # feedback law for the safe controller
 
 SAFE_CONTROLLER_STEP = 10  # think of distance|safe value based switching
 SAFE_CONTROLLER_ACTIVATE_THRESHOLD = 1.0
-
-SYSTEM_A = np.array([[0.9983, -22.9537, -0.0001],
-                     [0., 0.9976, 0.0],
-                     [0., 0, 0.9672]])
-
-SYSTEM_B = np.array([[0, 0., 0.1639]])
 
 def activate_safe_controller_condition(state, activate_threshold=SAFE_CONTROLLER_ACTIVATE_THRESHOLD):
     safe_value = np.array(state).transpose() @ MATRIX_P @ np.array(state)
@@ -106,17 +103,20 @@ def get_init_condition_in_safety_envelope(n_points_per_dim=1):
 
 
 class ModelbasedAgent:
-    def __init__(self, feedback_law=None, action_bound=ACTION_BOUND):
-        self.feedback_law = feedback_law
+    def __init__(self):
+        self.feedback_law = F
         self.kp=KP
         self.kd=KD
         self.matrix_P = MATRIX_P
 
     def get_action(self, tracking_error):
-        action = np.squeeze( -1 * KP @ tracking_error[:6] -1 * KD @ tracking_error[6:])
+        # action = np.squeeze( -1 * KP @ tracking_error[:6] -1 * KD @ tracking_error[6:])
+        action = np.squeeze(self.feedback_law @ tracking_error)
+        action = np.clip(action, -1, 1)
         return action
 
     def safety_switch_on(self, tracking_error):
+        # safety_value = tracking_error[2:] @ MATRIX_P[2:, 2:] @ tracking_error[2:].T
         safety_value = tracking_error @ MATRIX_P @ tracking_error.T
         return safety_value > 1
 

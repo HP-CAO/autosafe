@@ -34,8 +34,7 @@ def setup_pybullet(envs_cfg, enable_gui=True):
                                    slope=slope_world.SlopeWorld,
                                    stair=stair_world.StairWorld,
                                    uneven=uneven_world.UnevenWorld)
-
-    world = WORLD_NAME_TO_CLASS_MAP['plane'](p, search_path=envs_cfg.envs_path)
+    world = WORLD_NAME_TO_CLASS_MAP['uneven'](p, search_path=envs_cfg.envs_path)
     world.build_world()
     # Record a video or not
     if envs_cfg.video.record:

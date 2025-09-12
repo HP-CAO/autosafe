@@ -48,7 +48,7 @@ SACParams:
   model_path: ''
   total_training_steps: 500000
   replay_buffer_size: 500000
-  learning_starts: 128
+  learning_starts: 512
   policy_update_frequency: 1
   use_layer_norm: false
   actor_hidden_units:
@@ -59,6 +59,8 @@ SACParams:
   - 256
   actor_activation: relu
   critic_activation: relu
+  autosafe_lam_mode: opt
+  lam_mode: opt
 ControlParams:
   frequency: 300
   initialize_from_cloud: false
@@ -76,7 +78,8 @@ JobParams:
   seed: 1
   capture_video: false
   output_path: ''
-  experiment_name: quadruped robot
+  experiment_name: sac_base
+  env_name: quadruped
 CoordinatorParams:
   chi: 0.25
   eta: 1.2

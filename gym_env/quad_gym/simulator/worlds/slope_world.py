@@ -11,7 +11,7 @@ class SlopeWorld:
                  slope_angle=-0.4,
                  slope_length=20,
                  slope_width=2,
-                 search_path="src/envs/simulator/sim_envs_v2"):
+                 search_path="gym_env/quad_gym/simulator/sim_envs_v2"):
         self._pybullet_client = pybullet_client
         self._pybullet_client.setAdditionalSearchPath(search_path)
 

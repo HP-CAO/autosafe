@@ -3,14 +3,14 @@ import numpy as np
 
 class UnevenWorld:
   """Builds a simple world with a plane only."""
-  def __init__(self, pybullet_client,  search_path="src/envs/simulator/sim_envs_v2"):
+  def __init__(self, pybullet_client,  search_path="gym_env/quad_gym/simulator/sim_envs_v2"):
     self._pybullet_client = pybullet_client
     self._pybullet_client.setAdditionalSearchPath(search_path)
 
   def build_world(self, friction=1.):
     """Builds world with uneven terrains."""
     p = self._pybullet_client
-    height_perturbation_range = 0.08
+    height_perturbation_range = 0.04
     num_heightfield_rows = 512
     num_heightfield_columns = 512
     heightfield_data = [0] * num_heightfield_rows * num_heightfield_columns
@@ -31,9 +31,10 @@ class UnevenWorld:
         heightfieldData=heightfield_data,
         numHeightfieldRows=num_heightfield_rows,
         numHeightfieldColumns=num_heightfield_columns)
+
     ground_id = p.createMultiBody(0, terrain_shape)
     # Change friction coefficient to 1 (or anything you want). I think 1 is default,
     # but you can play with this value.
     p.changeDynamics(ground_id, -1, lateralFriction=friction)
-    p.changeVisualShape(ground_id, -1, rgbaColor=[1, 1, 0, 1])
+    p.changeVisualShape(ground_id, -1, rgbaColor=[0.5, 0.5, 0.5, 1.0])
     return ground_id

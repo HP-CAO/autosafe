@@ -30,6 +30,7 @@ class A1(QuadrupedRobot):
             motor_params: DictConfig = None,
             vel_estimator_params: DictConfig = None,
             mpc_controller= None,
+            action_bound=1.0
     ) -> None:
 
         """Constructs an A1 robot and resets it to the initial states.
@@ -87,13 +88,75 @@ class A1(QuadrupedRobot):
         self.normal_mode = True  # False if the system is in the resetting phrase
         # Reset robot to init pose
         self.state = np.array([0.] * 12)
-        self.model_based_equilibrium = np.array([0.] * 12)
+        self.model_based_equilibrium = np.array([0., 0., 0.26, 0., 0., 0., 0.25, 0., 0., 0., 0., 0.])
+        self.action_bound = action_bound
+        self.simulation_steps_per_control_step = 50 # 50hz
+
+        self.pickup_zone_pose = np.array([2.5, 2.0, 0])
+        self.pickup_zone_radius = 0.5
+
+        self.delivery_zone_pose = np.array([3.5, -0.5, 0])
+        self.delivery_zone_radius = 0.5
+
+        self.zone_reach_threshold = 0.25
+        self.align_tol = np.deg2rad(10.0)
+
+        self.R = {
+            "w_d": 2.0,  # distance potential
+            "w_h": 0.6,  # heading potential
+            "w_z": 0.25,  # height
+            "w_v": 0.25,  # velocity regulation
+            "R1": 50,  # Zone1 completion bonus
+            "R2": 50,  # Zone2 completion bonus
+        }
+        self.phase = 0  # 0 -> go to Zone1, 1 -> go to Zone2
+        self.hold1 = 0
+        self.hold2 = 0
+        self.success = False
+        self.robot_xy_list =[]
+        self.set_up_delivery_scenario()
+
+    def set_up_delivery_scenario(self):
+        # zones
+        self._zone_pickup_id = self._spawn_zone_disk(self.pickup_zone_pose, self.pickup_zone_radius,
+                                                     rgba=(0.2, 0.6, 0.9, 0.5))
+        self._zone_delivery_id = self._spawn_zone_disk(self.delivery_zone_pose, self.delivery_zone_radius,
+                                                       rgba=(0.9, 0.6, 0.2, 0.5))
+
+
+    def _spawn_zone_disk(self, center_xyz, radius, thickness=0.03, rgba=(0.2, 0.8, 0.4, 0.7)):
+        vis_id = self.pybullet_client.createVisualShape(
+            self.pybullet_client.GEOM_CYLINDER, radius=radius, length=thickness, rgbaColor=rgba
+        )
+        x, y, z = center_xyz
+        # Put disk so its top is flush with z=0 (ground); adjust if your ground isn’t at 0
+        base_z = z + thickness / 2.0
+        zone_id = self.pybullet_client.createMultiBody(
+            baseMass=0.0,  # static
+            baseVisualShapeIndex=vis_id,
+            basePosition=[x, y, base_z]
+        )
+        # Optional: make it non-collidable marker (visual only)
+        # self.pybullet_client.setCollisionFilterGroupMask(zone_id, -1, 0, 0)
+        return zone_id
+
+    def _dist_xy(self, a, b):
+        ax, ay, _ = a
+        bx, by, _ = b
+        return np.hypot(ax - bx, ay - by) # Euclidean distance in xy plane
+
+    def reached_pickup_zone(self, robot_base_pos):
+        return self._dist_xy(robot_base_pos, self.pickup_zone_pose) <= self.zone_reach_threshold
+
+    def reached_delivery_zone(self, robot_base_pos):
+        return self._dist_xy(robot_base_pos, self.delivery_zone_pose) <= self.zone_reach_threshold
 
 
     def reset(self,
               seed=None,
               hard_reset: bool = False,
-              num_reset_steps: Optional[int] = None):
+              num_reset_steps: Optional[int] = None,
+              options={"mode": "train"}):
         """Resets the robot."""
 
         self.mpc_controller.reset_controllers()
@@ -102,9 +165,10 @@ class A1(QuadrupedRobot):
         self.mpc_controller.update()
         self.state = self.mpc_controller.robot_state
         obs = self.get_observation()
-        self.model_based_equilibrium = np.array(self.mpc_controller.ref_point)
+        self.phase = 0  # 0 -> go to Zone1, 1 -> go to Zone2
+        self.success = False
         info = {}
-
+        self.robot_xy_list = []
         return obs, info
 
     def _reset_pybullet_client(self):
@@ -153,7 +217,6 @@ class A1(QuadrupedRobot):
                 self._motor_group.init_positions[i],
                 targetVelocity=0,
             )
-
 
         # todo be careful of the set in real world
         # Steps the robot with position command
@@ -221,19 +284,38 @@ class A1(QuadrupedRobot):
         # self.controller.update_logs()  # Update log records  # TODO: implement this outside
 
     def step(self, action):
-        self.mpc_controller.update()
-        self._step_counter += 1
-        motor_action, _ = self.mpc_controller.get_action(action=action)
-        self._step(motor_action)
+        action=action * self.action_bound
+        for _ in range(self.simulation_steps_per_control_step):
+            self.mpc_controller.update()
+            self._step_counter += 1
+            motor_action, _ = self.mpc_controller.get_action(action=action)
+            self._step(motor_action)
         obs = self.get_observation()
         self.state = np.array(self.mpc_controller.robot_state)
         termination = self.termination_check()
-        truncation = False
         info = None
-        r = self.get_reward()
-        return obs, r, termination, truncation, info
+        r = self.get_reward() # large negative reward on crash
+        done = self.success
+        self.robot_xy_list.append(self.base_position[:2].copy())
+        return obs, r, termination, done, info
 
+    def get_reward(self):
+        goal = self._active_goal()
+        reward = self._phi_reward(goal)
 
+        # update phase
+        if self.phase == 0:
+            cond = self._in_zone(self.pickup_zone_pose) and self._aligned_to(self.pickup_zone_pose)
+            if cond:
+                self.phase = 1
+                reward += self.R["R1"]
+        else:
+            cond = self._in_zone(self.delivery_zone_pose) and self._aligned_to(self.delivery_zone_pose)
+            if cond:
+                if not self.success:
+                    reward += self.R["R2"]  # claim reward only once
+                    self.success = True
+        return float(reward)
 
     def _step(self, action, motor_control_mode=None):
         # print("Entering a1.step!!!")
@@ -259,16 +341,12 @@ class A1(QuadrupedRobot):
                 cameraTargetPosition=self.base_position,
             )
 
-    def get_reward(self):
-        r = -1 * np.linalg.norm(self.model_based_equilibrium - self.state)
-        return r
-
     def termination_check(self):
         # height termination
         if self.state is None:
             return False
         else:
-            return self.state[2] < 0.15 or self.state[2]>0.8
+            return self.state[2] < 0.15 or self.state[2] > 0.8  # height too low or too high
 
     def _update_contact_history(self):
 
@@ -306,10 +384,6 @@ class A1(QuadrupedRobot):
     def base_orientation_quaternion(self):
         return np.array(
             self._pybullet_client.getBasePositionAndOrientation(self.quadruped)[1])
-
-    # @property
-    # def base_velocity(self):
-    #     return self._pybullet_client.getBaseVelocity(self.robot)[0]
 
     @property
     def base_linear_velocity(self):
@@ -424,7 +498,74 @@ class A1(QuadrupedRobot):
         return motor_torques_dict
 
     def get_observation(self):
-        return self.mpc_controller.state_vector
+        observation_list = []
+        if self.phase == 0:
+            goal = self.pickup_zone_pose
+        else:
+            goal = self.delivery_zone_pose
+        observation_list.extend(self.base_position[:2] - goal[:2]) # [2]
+        observation_list.extend(self.base_orientation_rpy) # [3]
+        observation_list.extend(self.mpc_controller.robot_state) # [12]
+        observation_list.append(self.phase) # [1]
+        return np.array(observation_list)
+
+    def get_performance_score(self):
+        if self.phase == 0:
+            return self._dist_to(self.pickup_zone_pose)
+        else:
+            return self._dist_to(self.delivery_zone_pose)
+
+    def save_trajectory(self, filepath="traj.png", total_reward=0.0):
+        """
+        Save a top-down plot of the robot XY trajectory and the pickup/delivery zones.
+        """
+        import os
+        import matplotlib.pyplot as plt
+
+
+        xs, ys = zip(*self.robot_xy_list)
+
+        fig, ax = plt.subplots(figsize=(6, 6), dpi=150)
+
+        # path
+        ax.plot(xs, ys, linewidth=2, label="trajectory")
+
+        # start / end markers
+        ax.scatter(xs[0], ys[0], s=60, marker="o", label="start")
+        ax.scatter(xs[-1], ys[-1], s=60, marker="x", label="end")
+
+        # zones as disks
+        def add_zone(center_xyz, radius, color, label):
+            from matplotlib.patches import Circle
+            cx, cy, _ = center_xyz
+            circ = Circle((cx, cy), radius, facecolor=color, edgecolor="k", alpha=0.25, linewidth=1.0, label=label)
+            ax.add_patch(circ)
+            ax.scatter([cx], [cy], s=20, color=color, zorder=3)
+
+        add_zone(self.pickup_zone_pose, getattr(self, "pickup_zone_radius", 0.5), color="#4EA5D9",
+                 label="Zone 1 (pickup)")
+        add_zone(self.delivery_zone_pose, getattr(self, "delivery_zone_radius", 0.5), color="#F4A259",
+                 label="Zone 2 (delivery)")
+
+        # nicer axes
+        ax.set_aspect("equal", adjustable="box")
+        ax.set_xlabel("x (m)")
+        ax.set_ylabel("y (m)")
+        ax.grid(True, linewidth=0.4, alpha=0.4)
+        ax.legend(loc="best", fontsize=9)
+        text = f"Episodic reward: {total_reward:.1f}"
+        ax.text(0.02, 0.98, text,
+                transform=ax.transAxes,
+                va="top", ha="left",
+                fontsize=10, bbox=dict(facecolor="white", alpha=0.7, edgecolor="none"))
+        # margins so disks aren’t cut
+        pad = max(getattr(self, "pickup_zone_radius", 0.5), getattr(self, "delivery_zone_radius", 0.5)) + 0.4
+        # ax.set_xlim(min(xs) - pad, max(xs) + pad)
+        # ax.set_ylim(min(ys) - pad, max(ys) + pad)
+
+        plt.tight_layout()
+        fig.savefig(filepath)
+        plt.close(fig)
 
     @property
     def state_vector(self):
@@ -501,3 +642,45 @@ class A1(QuadrupedRobot):
     @property
     def num_motors(self):
         return 12
+
+    def _robot_xy_yaw(self):
+        (x, y, z), q = self.pybullet_client.getBasePositionAndOrientation(self.quadruped)
+        yaw = self.pybullet_client.getEulerFromQuaternion(q)[2]
+        return np.array([x, y, 0.0], float), float(yaw)
+
+    def _dist_to(self, goal):
+        xy, _ = self._robot_xy_yaw()
+        return np.hypot(xy[0] - goal[0], xy[1] - goal[1])
+
+    def _heading_err_to(self, goal):
+        xy, yaw = self._robot_xy_yaw()
+        desired = np.arctan2(goal[1] - xy[1], goal[0] - xy[0])
+        e = (yaw - desired + np.pi) % (2 * np.pi) - np.pi  # take the shortest turn
+        return e
+
+    def _in_zone(self, goal):
+        return self._dist_to(goal) <= self.zone_reach_threshold
+
+    def _aligned_to(self, goal):
+        return abs(self._heading_err_to(goal)) <= self.align_tol
+
+
+    def _phi_reward(self, goal):  # potential for shaping
+        d = self._dist_to(goal)
+        th = abs(self._heading_err_to(goal))
+        vx = self.state[6] # body frame x velocity
+        v_regulation = np.linalg.norm(vx - 0.25)  # we regulate the robot has constant during the task
+        height_regulation = np.linalg.norm(self.state[2]-self._mpc_body_height)
+        # print("===================debug=================")
+        # print(f"distance to goal: {d}", self.R["w_d"] * np.exp(-d))
+        # print(f"heading error to goal: {th}", self.R["w_h"] * np.exp(-th))
+        # print(f"velocity regulation: {v_regulation}", self.R["w_v"] * np.exp(-v_regulation))
+        # print(f"height regulation: {height_regulation}", self.R["w_z"] * np.exp(-height_regulation))
+        # print(f"total reward: {self.R['w_d'] * np.exp(-d) + self.R['w_h'] * np.exp(-th) + self.R['w_v'] * np.exp(-v_regulation) + self.R['w_z'] * np.exp(-height_regulation)}")
+        # print("=========================================")
+
+        return (self.R["w_d"] * np.exp(-d) + self.R["w_h"] * np.exp(-th) + self.R["w_v"] * np.exp(-v_regulation) + self.R["w_z"] * np.exp(-height_regulation))
+
+    def _active_goal(self):
+        return self.pickup_zone_pose if self.phase == 0 else self.delivery_zone_pose
+

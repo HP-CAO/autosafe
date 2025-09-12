@@ -144,14 +144,14 @@ class OffsetGaitScheduler(gait_scheduler.GaitScheduler):
             if (_leg_states[leg_id] == gait_scheduler.LegState.STANCE
                     and not contact_states[leg_id] and self.normalized_phase[leg_id]
                     > self._lose_contact_phase_threshold):
-                logging.info("lost contact detected.")
+                # logging.info("lost contact detected.")
                 _leg_states[leg_id] = gait_scheduler.LegState.LOSE_CONTACT
 
             # Detect early touch down status
             if (_leg_states[leg_id] == gait_scheduler.LegState.SWING
                     and contact_states[leg_id] and self.normalized_phase[leg_id]
                     > self._early_touchdown_phase_threshold):
-                logging.info("early touch down detected.")
+                # logging.info("early touch down detected.")
                 _leg_states[leg_id] = gait_scheduler.LegState.EARLY_CONTACT
                 # print(f"leg_id: {leg_id}")
                 # print(self.normalized_phase[leg_id])

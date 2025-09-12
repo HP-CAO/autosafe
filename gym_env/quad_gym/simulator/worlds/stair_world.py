@@ -10,7 +10,7 @@ class StairWorld:
                  stair_height: float = 0.08,
                  stair_length: float = 0.25,
                  first_step_at: float = 1.,
-                 search_path="src/envs/simulator/sim_envs_v2"):
+                 search_path="gym_env/quad_gym/simulator/sim_envs_v2"):
         self._pybullet_client = pybullet_client
         self._pybullet_client.setAdditionalSearchPath(search_path)
 

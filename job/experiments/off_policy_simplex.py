@@ -34,7 +34,7 @@ def train(rl_agent, safe_agent, env, writer, cfg, safe_policy_steps=5):
             else:
                 action = rl_agent.get_action(obs_aug, mode='train').squeeze()
 
-            next_obs, rewards, terminations, truncations, infos = env.step(action)
+            next_obs, rewards, terminations, trunc, infos = env.step(action)
             tracking_error = env.state - env.model_based_equilibrium
 
             next_obs_aug = np.append(next_obs, tracking_error)
@@ -58,6 +58,9 @@ def train(rl_agent, safe_agent, env, writer, cfg, safe_policy_steps=5):
 
             if terminations:
                 accumulated_term += 1
+                break
+
+            if trunc:
                 break
 
         ep += 1
@@ -110,7 +113,7 @@ def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, global_episode
                 else:
                     action = rl_agent.get_action(obs_aug, mode='train').squeeze()
 
-                next_obs, r, terminations, truncations, infos = env.step(action)
+                next_obs, r, terminations, trunc, infos = env.step(action)
                 performance_score = env.get_performance_score()
                 accumulate_performance_score.append(performance_score)
                 tracking_error = env.state - env.model_based_equilibrium
@@ -119,6 +122,9 @@ def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, global_episode
                 episodic_return.append(r)
 
                 if terminations:
+                    break
+
+                if trunc:
                     break
 
             accumulated_r.append(sum(episodic_return))
@@ -136,3 +142,8 @@ def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, global_episode
     writer.add_scalar("evaluation/performance_mean", performance_mean, global_step)
     writer.add_scalar("evaluation/performance_std", performance_std, global_step)
     writer.add_scalar("evaluation/episodic_return_ep", return_mean, global_episode)
+
+    try:
+        env.save_trajectory(cfg.JobParams.output_path + f'{global_step}_traj.png', total_reward=return_mean)
+    except:
+        pass

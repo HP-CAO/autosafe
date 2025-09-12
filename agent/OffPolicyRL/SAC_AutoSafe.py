@@ -85,7 +85,7 @@ def get_action_mean(action_mean_learn, action_safe, lam):
 
 class AutoSafeSAC:
     def __init__(self, params: SACConfig, shape_observations, shape_action, P_matrix, F_matrix,
-                 mode='train', lam_mode='opt', tem_min=1.0, tem_max=25.0, control_compensation=0.0):
+                 mode='train', lam_mode='opt', tem_min=1.0, tem_max=25.0,):
         self.params = params
         self.shape_action = shape_action
         self.critic_update_step = 0
