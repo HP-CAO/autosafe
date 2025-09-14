@@ -88,7 +88,7 @@ def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, global_episode
     logger.info("Start evaluating the agent...")
     multi_rollout_return = []
     multi_rollout_performance = []
-    num_rollouts = 5
+    num_rollouts = 3
 
     for episode in range(cfg.GymParams.TaskParams.num_episodes_to_run):
         accumulated_r = []

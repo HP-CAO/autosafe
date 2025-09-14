@@ -1,8 +1,7 @@
 import numpy as np
 import math
 
-ACTION_BOUND = 10.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
-
+ACTION_BOUND = 20.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
 
 MATRIX_P = np.array([[0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -15,7 +14,7 @@ MATRIX_P = np.array([[0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                      [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                      [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                      [0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                     [0,0,0, 0, 0, 155.295455907449, 0, 0, 0, 0, 0, 156.306807893237]])
+                     [0,0,0, 0, 0, 155.295455907449, 0, 0, 0, 0, 0, 156.306807893237]]) * 3.5
 
 KP = np.array([[-0., -0., -0., -0., -0., -0.],
                [-0., -0., -0., -0., -0., -0.],

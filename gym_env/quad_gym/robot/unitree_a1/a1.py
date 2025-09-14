@@ -88,27 +88,31 @@ class A1(QuadrupedRobot):
         self.normal_mode = True  # False if the system is in the resetting phrase
         # Reset robot to init pose
         self.state = np.array([0.] * 12)
-        self.model_based_equilibrium = np.array([0., 0., 0.26, 0., 0., 0., 0.25, 0., 0., 0., 0., 0.])
+        self.model_based_equilibrium = np.array([0., 0., 0.26, 0., 0., 0., 0.15, 0., 0., 0., 0., 0.])
+        # self.model_based_equilibrium = np.array([0., 0., 0.26, 0., 0., 0., 0, 0., 0., 0., 0., 0.])
         self.action_bound = action_bound
-        self.simulation_steps_per_control_step = 50 # 50hz
+        self.simulation_steps_per_control_step = 10 # 1000 / 10 = 100hz
 
-        self.pickup_zone_pose = np.array([2.5, 2.0, 0])
+        # self.pickup_zone_pose = np.array([2.5, 1.5, 0])
+        self.pickup_zone_pose = np.array([2.5, 1.5, 0])
         self.pickup_zone_radius = 0.5
 
-        self.delivery_zone_pose = np.array([3.5, -0.5, 0])
+        # self.delivery_zone_pose = np.array([3.5, -0.5, 0])
+        self.delivery_zone_pose = np.array([4.0, -0.0, 0])
         self.delivery_zone_radius = 0.5
 
         self.zone_reach_threshold = 0.25
         self.align_tol = np.deg2rad(10.0)
 
         self.R = {
-            "w_d": 2.0,  # distance potential
-            "w_h": 0.6,  # heading potential
+            "w_d": 1.0,  # distance potential
+            "w_h": 0.25,  # heading potential #0.6
             "w_z": 0.25,  # height
-            "w_v": 0.25,  # velocity regulation
-            "R1": 50,  # Zone1 completion bonus
-            "R2": 50,  # Zone2 completion bonus
+            "w_v": 0.0,  # velocity regulation
+            "R1": 2.5,  # Zone1 completion bonus
+            "R2": 50,  # Zone2 completion final bonus
         }
+
         self.phase = 0  # 0 -> go to Zone1, 1 -> go to Zone2
         self.hold1 = 0
         self.hold2 = 0
@@ -284,7 +288,8 @@ class A1(QuadrupedRobot):
         # self.controller.update_logs()  # Update log records  # TODO: implement this outside
 
     def step(self, action):
-        action=action * self.action_bound
+        # action=action * self.action_bound
+        action = action * self.action_bound
         for _ in range(self.simulation_steps_per_control_step):
             self.mpc_controller.update()
             self._step_counter += 1
@@ -308,8 +313,8 @@ class A1(QuadrupedRobot):
             cond = self._in_zone(self.pickup_zone_pose) and self._aligned_to(self.pickup_zone_pose)
             if cond:
                 self.phase = 1
-                reward += self.R["R1"]
         else:
+            reward += self.R["R1"]
             cond = self._in_zone(self.delivery_zone_pose) and self._aligned_to(self.delivery_zone_pose)
             if cond:
                 if not self.success:
@@ -503,6 +508,8 @@ class A1(QuadrupedRobot):
             goal = self.pickup_zone_pose
         else:
             goal = self.delivery_zone_pose
+
+        observation_list.extend(self.base_position) # [3]
         observation_list.extend(self.base_position[:2] - goal[:2]) # [2]
         observation_list.extend(self.base_orientation_rpy) # [3]
         observation_list.extend(self.mpc_controller.robot_state) # [12]

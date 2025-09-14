@@ -43,12 +43,12 @@ SACParams:
   batch_size: 128
   target_network_frequency: 1
   noise_clip: 0.5
-  entropy_alpha: 0.1
+  entropy_alpha: 0.005
   gamma_discount: 0.99
   model_path: ''
   total_training_steps: 500000
   replay_buffer_size: 500000
-  learning_starts: 512
+  learning_starts: 1500
   policy_update_frequency: 1
   use_layer_norm: false
   actor_hidden_units:
@@ -72,7 +72,7 @@ ControlParams:
     - 8
     - 4
 JobParams:
-  gpu: false
+  gpu: true
   job_name: ''
   run_mode: train
   seed: 1

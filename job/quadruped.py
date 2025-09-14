@@ -41,16 +41,16 @@ def run(cfg: Config) -> None:
     seed_everything(cfg.JobParams.seed)
     writer = SummaryWriter(cfg.JobParams.output_path)
 
-    observation_dim = 18
+    observation_dim = 21
     shape_action = 6
 
     envs_cfg = cfg.envs.simulator
     robot_cfg = cfg.envs.robot
     cfg.SACParams = cfg.edge["SACParams"]
     cfg.GymParams = cfg.gym["GymParams"]
-    cfg.GymParams.TaskParams.max_episode_steps = 500
+    cfg.GymParams.TaskParams.max_episode_steps = 3000
 
-    p = setup_pybullet(envs_cfg, enable_gui=False)
+    p = setup_pybullet(envs_cfg, enable_gui=True)
 
     from agent.OffPolicyRL.SAC import SACAgent
     from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
@@ -68,6 +68,19 @@ def run(cfg: Config) -> None:
         action_bound=ACTION_BOUND
     )
 
+    # mpc_controller = LocomotionController(
+    #     robot=env,
+    #     desired_speed=(robot_cfg.command.desired_vx, robot_cfg.command.desired_vy),
+    #     desired_twisting_speed=robot_cfg.command.desired_wz,
+    #     desired_com_height=robot_cfg.command.mpc_body_height,
+    #     mpc_body_mass=robot_cfg.command.mpc_body_mass,
+    #     mpc_body_inertia=robot_cfg.command.mpc_body_inertia,
+    #     gait_config=robot_cfg.gait_scheduler,
+    #     swing_config=robot_cfg.swing_controller,
+    #     stance_config=robot_cfg.stance_controller,
+    #     vel_estimator_config=robot_cfg.com_velocity_estimator,
+    # )
+    #
     mpc_controller = LocomotionController(
         robot=env,
         desired_speed=(robot_cfg.command.desired_vx, robot_cfg.command.desired_vy),
@@ -86,7 +99,6 @@ def run(cfg: Config) -> None:
 
     if cfg.JobParams.experiment_name == 'sac_base':
         from job.experiments.off_policy_base import train
-        
         n_s = MATRIX_P.shape[0]
         # ensure having same information in input by including the tracking error as the other baselines
         agent = SACAgent(cfg.SACParams, observation_dim + n_s,shape_action)
@@ -95,7 +107,8 @@ def run(cfg: Config) -> None:
     elif cfg.JobParams.experiment_name == 'sac_autosafe':
         from job.experiments.off_policy_autosafe import train
         n_s = MATRIX_P.shape[0]
-        agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, shape_action, MATRIX_P, F, lam_mode=cfg.SACParams.autosafe_lam_mode)
+        agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, shape_action, MATRIX_P, F,
+                            lam_mode=cfg.SACParams.autosafe_lam_mode, tem_min=1.0, tem_max=25.0)
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'model_based':
         from job.experiments.model_based import evaluate
@@ -108,14 +121,12 @@ def run(cfg: Config) -> None:
         train(rl_agent, safe_agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'sac_simplex':
         from job.experiments.off_policy_simplex import train
-        
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, shape_action)
         safe_agent = ModelbasedAgent()
-        train(rl_agent, safe_agent, env, writer, cfg)
+        train(rl_agent, safe_agent, env, writer, cfg, safe_policy_steps=10)
     elif cfg.JobParams.experiment_name == 'sac_lyapunov':
         from job.experiments.off_policy_lyapunov import train
-        
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, shape_action)
         safe_agent = ModelbasedAgent()
@@ -123,7 +134,6 @@ def run(cfg: Config) -> None:
     elif cfg.JobParams.experiment_name == 'sac_lag':
         from job.experiments.off_policy_lagrangian import train
         from agent.OffPolicyRL.SAC_Lagrangian import SACAgentLag
-        
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgentLag(cfg.SACParams, observation_dim + n_s, shape_action, lag_factor=0.5)
         safe_agent = ModelbasedAgent()

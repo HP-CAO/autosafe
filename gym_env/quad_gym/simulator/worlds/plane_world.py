@@ -8,9 +8,9 @@ class PlaneWorld:
         self._pybullet_client = pybullet_client
         self._pybullet_client.setAdditionalSearchPath(search_path)
 
-    def build_world(self, friction=.99):
+    def build_world(self):
         """Builds world with a simple plane and custom friction."""
         ground_id = self._pybullet_client.loadURDF('urdf/plane.urdf')
         # self._pybullet_client.changeDynamics(ground_id, -1, lateralFriction=.99)
-        self._pybullet_client.changeDynamics(ground_id, -1, lateralFriction=friction)
+        # self._pybullet_client.changeDynamics(ground_id, -1, lateralFriction=friction)
         return ground_id

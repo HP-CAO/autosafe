@@ -96,7 +96,6 @@ class LocomotionController(object):
                                     vx, vy, 0.,  # v
                                     0., 0., wz])  # rpy_dot
 
-        self.beta_distribution_noise = np.random.beta(a=0.5, b=0.5, size=6) * 0.5
         self.setup_controllers(robot)
 
     def setup_controllers(self, robot):
