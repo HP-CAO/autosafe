@@ -55,18 +55,18 @@ ENV_NAME="quadruped"
 
 # Each entry: "<job_name> <experiment_name> [extra args...]"
 JOBS=(
-  "model_based         model_based"
-  "sac_base            sac_base"
-  "sac_autosafe_opt    sac_autosafe    SACParams.autosafe_lam_mode=opt"
-  "sac_autosafe_linear sac_autosafe    SACParams.autosafe_lam_mode=linear"
-  "sac_autosafe_exp    sac_autosafe    SACParams.autosafe_lam_mode=exp"
-  "sac_residual        sac_residual"
-  "sac_simplex         sac_simplex"
-  "sac_lyapunov        sac_lyapunov"
-  "sac_lag             sac_lag"
-  "sac_lam_opt         sac_lam         SACParams.sac_lam_mode=opt"
-  "sac_lam_linear      sac_lam         SACParams.sac_lam_mode=linear"
-  "sac_lam_exp         sac_lam         SACParams.sac_lam_mode=exp"
+#  "model_based         model_based"
+#  "sac_base            sac_base"
+  "sac_autosafe_opt    sac_autosafe    edge.SACParams.autosafe_lam_mode=opt"
+  "sac_autosafe_linear sac_autosafe    edge.SACParams.autosafe_lam_mode=linear"
+  "sac_autosafe_exp    sac_autosafe    edge.SACParams.autosafe_lam_mode=exp"
+#  "sac_residual        sac_residual"
+#  "sac_simplex         sac_simplex"
+#  "sac_lyapunov        sac_lyapunov"
+#  "sac_lag             sac_lag"
+  "sac_lam_opt         sac_lam         edge.SACParams.sac_lam_mode=opt"
+  "sac_lam_linear      sac_lam         edge.SACParams.sac_lam_mode=linear"
+  "sac_lam_exp         sac_lam         edge.SACParams.sac_lam_mode=exp"
 )
 
 run() {
@@ -78,10 +78,10 @@ run() {
   mkdir -p "$out"
   echo "[RUN] ${job} (seed=${seed})"
   python job/quadruped.py \
-    JobParams.job_name="$job" \
-    JobParams.experiment_name="$exp" \
-    JobParams.seed="$seed" \
-    SACParams.total_training_steps="$MAX_STEPS" \
+    edge.JobParams.job_name="$job" \
+    edge.JobParams.experiment_name="$exp" \
+    edge.JobParams.seed="$seed" \
+    edge.SACParams.total_training_steps="$MAX_STEPS" \
     "${extra[@]}" \
     >"$out/stdout.log" 2>"$out/stderr.log" &
 }

@@ -50,7 +50,7 @@ def run(cfg: Config) -> None:
     cfg.GymParams = cfg.gym["GymParams"]
     cfg.GymParams.TaskParams.max_episode_steps = 3000
 
-    p = setup_pybullet(envs_cfg, enable_gui=True)
+    p = setup_pybullet(envs_cfg, enable_gui=False)
 
     from agent.OffPolicyRL.SAC import SACAgent
     from agent.OffPolicyRL.SAC_AutoSafe import AutoSafeSAC
