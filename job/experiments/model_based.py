@@ -15,7 +15,6 @@ def evaluate(agent, env, writer, cfg, global_step):
             action = agent.get_action(tracking_error).squeeze()
             _, r, terminations, trunc, infos = env.step(action)
             episodic_return.append(r)
-
             if terminations:
                 break
 

@@ -32,9 +32,9 @@ for SEED in "${SEEDS[@]}"; do
 #  run sac_residual          sac_residual    "$SEED"
 #  run sac_lyapunov          sac_lyapunov    "$SEED"
 #  run sac_lag               sac_lag         "$SEED"
-  run sac_lam_opt           sac_lam         1  SACParams.sac_lam_mode=opt
-  run sac_lam_opt           sac_lam         2  SACParams.sac_lam_mode=opt
-  run sac_lam_opt           sac_lam         3  SACParams.sac_lam_mode=opt
+#  run sac_lam_opt           sac_lam         1  SACParams.sac_lam_mode=opt
+#  run sac_lam_opt           sac_lam         2  SACParams.sac_lam_mode=opt
+#  run sac_lam_opt           sac_lam         3  SACParams.sac_lam_mode=opt
 #  run sac_lam_linear        sac_lam         "$SEED"  SACParams.sac_lam_mode=linear
 #  run sac_lam_exp           sac_lam         "$SEED"  SACParams.sac_lam_mode=exp
 

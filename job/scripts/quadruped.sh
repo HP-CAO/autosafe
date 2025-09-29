@@ -57,16 +57,16 @@ ENV_NAME="quadruped"
 JOBS=(
 #  "model_based         model_based"
 #  "sac_base            sac_base"
-  "sac_autosafe_opt    sac_autosafe    edge.SACParams.autosafe_lam_mode=opt"
-  "sac_autosafe_linear sac_autosafe    edge.SACParams.autosafe_lam_mode=linear"
-  "sac_autosafe_exp    sac_autosafe    edge.SACParams.autosafe_lam_mode=exp"
+#  "sac_autosafe_opt    sac_autosafe    edge.SACParams.autosafe_lam_mode=opt"
+#  "sac_autosafe_linear sac_autosafe    edge.SACParams.autosafe_lam_mode=linear"
+#  "sac_autosafe_exp    sac_autosafe    edge.SACParams.autosafe_lam_mode=exp"
 #  "sac_residual        sac_residual"
 #  "sac_simplex         sac_simplex"
 #  "sac_lyapunov        sac_lyapunov"
 #  "sac_lag             sac_lag"
-  "sac_lam_opt         sac_lam         edge.SACParams.sac_lam_mode=opt"
-  "sac_lam_linear      sac_lam         edge.SACParams.sac_lam_mode=linear"
-  "sac_lam_exp         sac_lam         edge.SACParams.sac_lam_mode=exp"
+  "sac_lam_opt         sac_lam         edge.SACParams.lam_mode=opt"
+  "sac_lam_linear      sac_lam         edge.SACParams.lam_mode=linear"
+  "sac_lam_exp         sac_lam         edge.SACParams.lam_mode=exp"
 )
 
 run() {

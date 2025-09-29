@@ -185,7 +185,6 @@ class Glucose(gym.Env):
         else:
             reward = risk_score
 
-
         if u >= 0.1:
             reward -= self.action_penalty
 

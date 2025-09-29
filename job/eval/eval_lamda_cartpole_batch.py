@@ -88,22 +88,22 @@ for t, x_goal in zip(t_list, x_list):
     ys = pts_in_envelope[:, 2]
     sc = plt.scatter(xs, ys, c=pts_lamda, cmap='plasma', s=20, edgecolors='none')
     cbar=plt.colorbar(sc)
-    cbar.set_label(r'$\lambda$', fontsize=16, weight='bold')
+    cbar.set_label(r'$\lambda$', fontsize=18, weight='bold')
     rect_patch = patches.Rectangle((x_min, y_min), x_max-x_min, y_max-y_min, edgecolor='black', facecolor='none', lw=1.5)
     ax.add_patch(rect_patch)
 
     ellipse_patch = patches.Ellipse((0, 0), math.sqrt(1/wp[0]) * 2, math.sqrt(1/wp[1]) * 2, angle=angle, edgecolor='black', facecolor='none', lw=1.5)
     ax.add_patch(ellipse_patch)
 
-    ax.scatter(x_goal, 0, color='green', s=50, marker='o', label="Equilibrium Point")
+    ax.scatter(x_goal, 0, color='green', s=100, marker='o', label="Control Goal")
     plt.legend(loc='lower center', ncol=2, bbox_to_anchor=(0.5, -0.18), fontsize=14, frameon=False)
     # Adjust plot limits and display the result
     ax.set_xlim(-1.0, 1.0)
     ax.set_ylim(-0.95, 0.95)
-    plt.xlabel('$X$', fontsize=16, weight='bold')
-    plt.ylabel('$\\theta$', fontsize=16, weight='bold')
+    plt.xlabel('$X$', fontsize=18, weight='bold')
+    plt.ylabel('$\\theta$', fontsize=18, weight='bold')
     plt.subplots_adjust(bottom=0.14)
-    plt.title(f'Heatmap of $\lambda$ ($T = {t})$', fontsize=16, weight='bold')
+    plt.title(f'Heatmap of $\lambda$ ($T = {t})$', fontsize=18, weight='bold')
     plt.tight_layout()
     # plt.show()
     plt.savefig(f'lamda_heatmap_cartpole_{x_goal}.pdf', bbox_inches='tight', dpi=300)

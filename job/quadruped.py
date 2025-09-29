@@ -146,7 +146,7 @@ def run(cfg: Config) -> None:
         safe_agent = ModelbasedAgent()
         # we need to include the value of lam to make the mdp stationary
         rl_agent = SACAgentLam(cfg.SACParams, observation_dim + n_s + 1, shape_action, safe_agent=safe_agent)
-        train(rl_agent, safe_agent, env, writer, cfg, mode=cfg.SACParams.sac_lam_mode)
+        train(rl_agent, safe_agent, env, writer, cfg, mode=cfg.SACParams.lam_mode)
     else:
         print("Experiment name not recognized. Please check the configuration.")
 

@@ -7,7 +7,7 @@ import tqdm
 root_path = "."  # run under the results folder
 all_data_path = "data_source"
 case_study_list = ["cartpole", "glucose", "quadrotor", "quadruped"]
-algorithm_list = ["model_based", "sac_base", "sac_autosafe_exp", "sac_autosafe_linear",
+algorithm_list = ["model_based", "sac_base", "sac_autosafe_exp", "sac_autosafe_linear", "sac_autosafe_opt_cor",
                   "sac_autosafe_opt", "sac_lag", "sac_lam_exp", "sac_lam_linear",
                   "sac_lam_opt", "sac_lyapunov", "sac_residual", "sac_simplex"]
 
@@ -60,7 +60,7 @@ for file_name in tqdm.tqdm(all_file):
             tensorboard_event_name.sort()
             tensorboard_event_name = tensorboard_event_name[0]
             tensorboard_event_path = os.path.join(tensorboard_event_folder, tensorboard_event_name)
-            save_name = seed# run number
+            save_name = seed # run number
 
             print(f"Processing {case_study_name} {algo_name} {save_name}")
             data_info[case_study_name][algo_name].append(save_name)

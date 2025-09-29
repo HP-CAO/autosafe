@@ -10,6 +10,7 @@ import casadi as cs
 import numpy as np
 import pybullet as p
 from gymnasium import spaces
+from tensorboardX.x2num import make_np
 
 from gym_env.quadrotor.utils.benchmark_env import Cost, Task
 from gym_env.quadrotor.utils.constraints import GENERAL_CONSTRAINTS
@@ -313,6 +314,22 @@ class Quadrotor(BaseAviary):
 
         # Set prior/symbolic info.
         self._setup_symbolic()
+        # Override action space if normalized actions are used.
+
+    def make_goal_sphere(self, pos, radius=0.15, rgba=(1, 0, 0, 0.6)):
+        """
+        Create a purely visual sphere at 'pos' (x,y,z) to mark a goal.
+        Returns the body unique ID.
+        """
+        vis = self.pybullet.createVisualShape(shapeType=p.GEOM_SPHERE, radius=radius, rgbaColor=rgba)
+        uid = self.pybullet.createMultiBody(
+            baseMass=0,  # static
+            baseCollisionShapeIndex=-1,  # no collision
+            baseVisualShapeIndex=vis,
+            basePosition=pos,
+            baseOrientation=[0, 0, 0, 1]
+        )
+        return uid
 
     def reset(self, seed=None, options=None):
         '''(Re-)initializes the environment to start an episode.
@@ -321,7 +338,6 @@ class Quadrotor(BaseAviary):
 
         Args:
             seed (int): An optional seed to reseed the environment.
-
         Returns:
             obs (ndarray): The initial state of the environment.
             info (dict): A dictionary with information about the dynamics and constraints symbolic models.
@@ -355,7 +371,6 @@ class Quadrotor(BaseAviary):
 
         self.OVERRIDDEN_QUAD_MASS = prop_values['M']
         self.OVERRIDDEN_QUAD_INERTIA = [prop_values['Ixx'], prop_values['Iyy'], prop_values['Izz']]
-
 
         # Override inertial properties. Here we can override the mass and inertia of the quadrotor.
         p.changeDynamics(
@@ -401,6 +416,11 @@ class Quadrotor(BaseAviary):
         self.step_in_episode = 0
 
         info = info | info_context
+
+        # self.make_goal_sphere(pos=[self.TASK_INFO['stabilization_goal'][0],
+        #                            self.TASK_INFO['stabilization_goal'][1],
+        #                            self.TASK_INFO['stabilization_goal'][2]])
+
         if self.INFO_IN_RESET:
             return obs, info
         else:
