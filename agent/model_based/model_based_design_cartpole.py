@@ -1,5 +1,7 @@
 import numpy as np
 import math
+import cvxpy as cp
+
 ACTION_BOUND = 20.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
 
 F = np.array([[25.9995, 19.4241, 75.9886, 13.8553]]) / ACTION_BOUND # feedback law for the safe controller
@@ -106,3 +108,80 @@ class ModelbasedAgent:
         return safety_value > 1
 
 
+def cbf_data_linear_dt(x, A, B, p_max, th_max, gamma):
+    """
+    Discrete-time CBF constraints for linear cart-pole.
+    Returns a list of (a_i, b_i) defining inequalities: a_i * u >= b_i.
+
+    x: current state (shape (4,) or (4,1))
+    A, B: discrete-time model matrices
+    p_max: max |p|
+    th_max: max |theta|
+    gamma: CBF gain (>0)
+    """
+    x = np.asarray(x).reshape(-1)  # ensure shape (4,)
+
+    constraints = []
+    B = B.reshape(-1, 1)  # ensure shape (4,)
+    # Helper: compute (a, b) for a given c, d
+    def make_constraint(c, d):
+        c = np.asarray(c).reshape(1, -1)  # 1x4
+        h = float(c @ x + d)  # current barrier value (not strictly needed below)
+        a = float(c @ B)  # scalar: c^T B
+        b = float(-c @ (A @ x) + (1.0 - gamma) * (c @ x) - gamma * d)
+        # print(f"make_constraint: c={c.flatten()}, d={d}, h={h}, a={a}, b={b}")
+        return a, b, h
+
+    # h_p+ = p_max - p  => c = [-1, 0, 0, 0], d = p_max
+    a_p_plus, b_p_plus, h_p_plus = make_constraint([-1.0, -0.5, 0.0, 0.0], p_max)
+    constraints.append((a_p_plus, b_p_plus))
+
+    # h_p- = p_max + p  => c = [1, 0, 0, 0], d = p_max
+    a_p_minus, b_p_minus, h_p_minus = make_constraint([1.0, 0.5, 0.0, 0.0], p_max)
+    constraints.append((a_p_minus, b_p_minus))
+
+    # h_th+ = th_max - th  => c = [0, 0, -1, 0], d = th_max
+    a_th_plus, b_th_plus, h_th_plus = make_constraint([0.0, 0.0, -1.0, -0.5], th_max)
+    constraints.append((a_th_plus, b_th_plus))
+
+    # h_th- = th_max + th  => c = [0, 0, 1, 0], d = th_max
+    a_th_minus, b_th_minus, h_th_minus = make_constraint([0.0, 0.0, 1.0, 0.5], th_max)
+    constraints.append((a_th_minus, b_th_minus))
+    return constraints
+
+# p_max=0.5, th_max=0.785
+def cbf_filter_dt(x, u_nom, A=SYSTEM_A, B=SYSTEM_B,
+                  p_max=0.05, th_max=0.785,
+                  gamma=0.6,
+                  u_min=-20.0, u_max=20.0):
+    """
+    One-step discrete-time CBF-QP filter for a linear cart-pole model.
+
+    x: current state (4,)
+    u_nom: nominal control (scalar)
+    A, B: discrete-time model matrices
+    p_max, th_max: safety bounds
+    gamma: CBF gain in discrete-time condition
+    u_min, u_max: actuator limits
+    """
+    cons = cbf_data_linear_dt(x, A, B, p_max, th_max, gamma)
+
+    u_nom = u_nom * ACTION_BOUND  # scale back to absolute control
+
+    u = cp.Variable()  # scalar control
+    objective = cp.Minimize(cp.square(u - u_nom))
+
+    constraints = [u >= u_min, u <= u_max]
+    for (a_i, b_i) in cons:
+        # if input doesn't affect that constraint, skip it
+        if abs(a_i) > 1e-6:
+            constraints.append(a_i * u >= b_i)
+
+    prob = cp.Problem(objective, constraints)
+    prob.solve(solver=cp.OSQP, warm_start=True, verbose=False)
+
+    if u.value is None:
+        # QP failed: fallback to clipped nominal control
+        return float(np.clip(u_nom, u_min, u_max)) / ACTION_BOUND, False
+    else:
+        return float(u.value) / ACTION_BOUND, True

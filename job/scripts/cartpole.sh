@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SEEDS=(1 2 3)
+#SEEDS=(1 2 3)
+SEEDS=(1)
 MAX_STEPS=200000
 LOG_ROOT="outputs"
 ENV_NAME='cartpole'
@@ -26,7 +27,8 @@ for SEED in "${SEEDS[@]}"; do
   # launch all variants in parallel for this SEED
 #  run model_based           model_based     "$SEED"
 #  run sac_base              sac_base        "$SEED"
-  run sac_autosafe_opt      sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=opt
+#   run sac_autosafe_opt      sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=opt
+   run sac_cbf               sac_cbf        "$SEED"
 #  run sac_autosafe_linear   sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=linear
 #  run sac_autosafe_exp      sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=exp
 #  run sac_residual          sac_residual    "$SEED"
