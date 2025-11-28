@@ -8,8 +8,9 @@ root_path = "."  # run under the results folder
 all_data_path = "data_source"
 case_study_list = ["cartpole", "glucose", "quadrotor", "quadruped"]
 algorithm_list = ["model_based", "sac_base", "sac_autosafe_exp", "sac_autosafe_linear", "sac_autosafe_opt_cor",
-                  "sac_autosafe_opt", "sac_lag", "sac_lam_exp", "sac_lam_linear",
-                  "sac_lam_opt", "sac_lyapunov", "sac_residual", "sac_simplex"]
+                  "sac_autosafe_opt", "sac_lag", "sac_lam_exp", "sac_lam_linear", "sac_cbf",
+                  "sac_lam_opt", "sac_lyapunov", "sac_residual", "sac_simplex", "sac_autosafe_opt_0.0",
+                  "sac_autosafe_opt_0.2","sac_autosafe_opt_0.3","sac_simplex_0.0","sac_simplex_0.2","sac_simplex_0.3",]
 
 data_info = {}
 for case in case_study_list:

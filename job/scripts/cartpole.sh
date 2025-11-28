@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-#SEEDS=(1 2 3)
-SEEDS=(1)
+SEEDS=(1 2 3 4 5)
+#SEEDS=(1)
 MAX_STEPS=200000
 LOG_ROOT="outputs"
 ENV_NAME='cartpole'

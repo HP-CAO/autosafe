@@ -1,7 +1,7 @@
 import numpy as np
 import math
 import cvxpy as cp
-
+# from scipy.signal import cont2discrete
 ACTION_BOUND = 20.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
 
 F = np.array([[25.9995, 19.4241, 75.9886, 13.8553]]) / ACTION_BOUND # feedback law for the safe controller
@@ -20,6 +20,7 @@ SYSTEM_A = np.array([[1.0000, 0.0333, 0, 0],
                      [-1.5151, -1.2348, -4.3123, 0.0577]])
 
 SYSTEM_B = np.array([[0, 0.0334, 0, -0.0783]])
+
 
 def activate_safe_controller_condition(state, activate_threshold=SAFE_CONTROLLER_ACTIVATE_THRESHOLD):
     safe_value = np.array(state).transpose() @ MATRIX_P @ np.array(state)
@@ -133,55 +134,124 @@ def cbf_data_linear_dt(x, A, B, p_max, th_max, gamma):
         return a, b, h
 
     # h_p+ = p_max - p  => c = [-1, 0, 0, 0], d = p_max
-    a_p_plus, b_p_plus, h_p_plus = make_constraint([-1.0, -0.5, 0.0, 0.0], p_max)
+    a_p_plus, b_p_plus, h_p_plus = make_constraint([-1.0, -0.1, 0.0, 0.0], p_max)
     constraints.append((a_p_plus, b_p_plus))
 
     # h_p- = p_max + p  => c = [1, 0, 0, 0], d = p_max
-    a_p_minus, b_p_minus, h_p_minus = make_constraint([1.0, 0.5, 0.0, 0.0], p_max)
+    a_p_minus, b_p_minus, h_p_minus = make_constraint([1.0, 0.1, 0.0, 0.0], p_max)
     constraints.append((a_p_minus, b_p_minus))
 
     # h_th+ = th_max - th  => c = [0, 0, -1, 0], d = th_max
-    a_th_plus, b_th_plus, h_th_plus = make_constraint([0.0, 0.0, -1.0, -0.5], th_max)
+    a_th_plus, b_th_plus, h_th_plus = make_constraint([0.0, 0.0, -1.0, -0.1], th_max)
     constraints.append((a_th_plus, b_th_plus))
 
     # h_th- = th_max + th  => c = [0, 0, 1, 0], d = th_max
-    a_th_minus, b_th_minus, h_th_minus = make_constraint([0.0, 0.0, 1.0, 0.5], th_max)
+    a_th_minus, b_th_minus, h_th_minus = make_constraint([0.0, 0.0, 1.0, 0.1], th_max)
     constraints.append((a_th_minus, b_th_minus))
     return constraints
+#
+#
+# # p_max=0.5, th_max=0.785
+# def cbf_filter_dt(x, u_nom, A=SYSTEM_A, B=SYSTEM_B,
+#                   p_max=0.5, th_max=0.785,
+#                   gamma=0.9,
+#                   u_min=-20.0, u_max=20.0):
+#     """
+#     One-step discrete-time CBF-QP filter for a linear cart-pole model.
+#
+#     x: current state (4,)
+#     u_nom: nominal control (scalar)
+#     A, B: discrete-time model matrices
+#     p_max, th_max: safety bounds
+#     gamma: CBF gain in discrete-time condition, if gamma = 1.0 => h(x_{k+1}) >= 0
+#     u_min, u_max: actuator limits
+#     """
+#
+#     cons = cbf_data_linear_dt(x, A, B, p_max *0.1 , th_max*0.1, gamma)
+#
+#     u_nom = u_nom * ACTION_BOUND  # scale back to absolute control
+#
+#     u = cp.Variable()  # scalar control
+#     objective = cp.Minimize(cp.square(u - u_nom))
+#
+#     constraints = [u >= u_min, u <= u_max]
+#
+#     for (a_i, b_i) in cons:
+#         # if input doesn't affect that constraint, skip it
+#         if abs(a_i) > 1e-6:
+#             constraints.append(a_i * u >= b_i)
+#
+#     prob = cp.Problem(objective, constraints)
+#     prob.solve(solver=cp.OSQP, warm_start=True, verbose=False)
+#
+#     if u.value is None:
+#         # QP failed: fallback to clipped nominal control
+#         return float(np.clip(u_nom, u_min, u_max)) / ACTION_BOUND, False
+#     else:
+#         return float(np.clip(u.value, u_min, u_max)) / ACTION_BOUND, True
 
-# p_max=0.5, th_max=0.785
-def cbf_filter_dt(x, u_nom, A=SYSTEM_A, B=SYSTEM_B,
-                  p_max=0.05, th_max=0.785,
-                  gamma=0.6,
-                  u_min=-20.0, u_max=20.0):
+
+def cbf_filter_dt(x, u_nom, A=SYSTEM_A, B=SYSTEM_B, P=MATRIX_P,
+                             u_min=-20.0, u_max=20.0,
+                             V_max=0.1):
     """
-    One-step discrete-time CBF-QP filter for a linear cart-pole model.
+    Lyapunov-based CBF filter for discrete-time linear system:
+        x_{k+1} = A x_k + B u_k
 
-    x: current state (4,)
-    u_nom: nominal control (scalar)
-    A, B: discrete-time model matrices
-    p_max, th_max: safety bounds
-    gamma: CBF gain in discrete-time condition
-    u_min, u_max: actuator limits
+    Safety constraint:
+        V_next = x_{k+1}^T P x_{k+1} <= V_max
+    where typically V_max = 1.0 if you've scaled P accordingly.
+
+    Returns:
+        u_safe: filtered control
+        certified: True if u_nom already satisfied Lyapunov constraint
+                   (QP returned u_nom), False otherwise
+        V_next_nom: V(x_{k+1}) under nominal control
+        V_next_safe: V(x_{k+1}) under filtered control
     """
-    cons = cbf_data_linear_dt(x, A, B, p_max, th_max, gamma)
+    x = np.asarray(x).reshape(-1)
+    A = np.asarray(A)
+    B = np.asarray(B).reshape(-1, 1)   # ensure (n,1)
+    P = np.asarray(P)
+    u_nom = u_nom * ACTION_BOUND
+    n = A.shape[0]
+    assert A.shape == (n, n)
+    assert B.shape == (n, 1)
+    assert P.shape == (n, n)
 
-    u_nom = u_nom * ACTION_BOUND  # scale back to absolute control
+    # Nominal next state and Lyapunov value (for diagnostics)
+    x_next_nom = A @ x + B.flatten() * u_nom
+    # V_now = float(x.T @ P @ x)
+    # V_next_nom = float(x_next_nom.T @ P @ x_next_nom)
 
-    u = cp.Variable()  # scalar control
+    # Optimization variable
+    u = cp.Variable()
+
+    # Next state in terms of u
+    x_next = A @ x + B.flatten() * u
+
+    # Objective: stay close to u_nom
     objective = cp.Minimize(cp.square(u - u_nom))
 
-    constraints = [u >= u_min, u <= u_max]
-    for (a_i, b_i) in cons:
-        # if input doesn't affect that constraint, skip it
-        if abs(a_i) > 1e-6:
-            constraints.append(a_i * u >= b_i)
+    # Lyapunov safety constraint: V_next <= V_max
+    lyap_constraint = cp.quad_form(x_next, P) <= V_max
+
+    # Input bounds
+    constraints = [lyap_constraint, u >= u_min, u <= u_max]
 
     prob = cp.Problem(objective, constraints)
-    prob.solve(solver=cp.OSQP, warm_start=True, verbose=False)
+    prob.solve(solver=cp.SCS, warm_start=True, verbose=False)
 
     if u.value is None:
-        # QP failed: fallback to clipped nominal control
-        return float(np.clip(u_nom, u_min, u_max)) / ACTION_BOUND, False
+        # Infeasible or solver failed: fallback to clipped nominal
+        u_safe = float(np.clip(u_nom, u_min, u_max))
+        certified = False
+        # x_next_safe = A @ x + B.flatten() * u_safe
+        # V_next_safe = float(x_next_safe.T @ P @ x_next_safe)
     else:
-        return float(u.value) / ACTION_BOUND, True
+        u_safe = float(u.value)
+        # x_next_safe = A @ x + B.flatten() * u_safe
+        # V_next_safe = float(x_next_safe.T @ P @ x_next_safe)
+        certified = abs(u_safe - u_nom) < 1e-6
+
+    return u_safe / ACTION_BOUND, certified

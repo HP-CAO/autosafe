@@ -23,7 +23,7 @@ def train(rl_agent, cbf_filter, env, writer, cfg, safe_policy_steps=5):
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
             action = rl_agent.get_action(obs_aug, mode='train').squeeze()
-            action, _ = cbf_filter(env.state, action)
+            action, _ = cbf_filter(tracking_error, action)
             next_obs, rewards, terminations, trunc, infos = env.step(action)
             tracking_error = env.state - env.model_based_equilibrium
 
@@ -90,9 +90,8 @@ def evaluate(rl_agent, cbf_filter, env, writer, cfg, global_step, global_episode
 
             for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
-
                 action = rl_agent.get_action(obs_aug, mode='train').squeeze()
-                action, _ = cbf_filter(env.state, action)
+                action, _ = cbf_filter(tracking_error, action)
                 next_obs, r, terminations, trunc, infos = env.step(action)
                 performance_score = env.get_performance_score()
                 accumulate_performance_score.append(performance_score)

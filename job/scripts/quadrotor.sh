@@ -49,24 +49,25 @@ set -euo pipefail
 
 # ---- config ----
 SEEDS=(1 2 3 4 5)                     # no commas in bash arrays
-MAX_STEPS=1000000
+MAX_STEPS=500000
 LOG_ROOT="outputs"
 ENV_NAME="quadrotor"
 
 # Each entry: "<job_name> <experiment_name> [extra args...]"
 JOBS=(
-  "model_based         model_based"
-  "sac_base            sac_base"
-  "sac_autosafe_opt    sac_autosafe    SACParams.autosafe_lam_mode=opt"
-  "sac_autosafe_linear sac_autosafe    SACParams.autosafe_lam_mode=linear"
-  "sac_autosafe_exp    sac_autosafe    SACParams.autosafe_lam_mode=exp"
-  "sac_residual        sac_residual"
-  "sac_simplex         sac_simplex"
-  "sac_lyapunov        sac_lyapunov"
-  "sac_lag             sac_lag"
-  "sac_lam_opt         sac_lam         SACParams.sac_lam_mode=opt"
-  "sac_lam_linear      sac_lam         SACParams.sac_lam_mode=linear"
-  "sac_lam_exp         sac_lam         SACParams.sac_lam_mode=exp"
+#  "model_based         model_based"
+#  "sac_base            sac_base"
+#  "sac_autosafe_opt    sac_autosafe    SACParams.autosafe_lam_mode=opt"
+#  "sac_autosafe_linear sac_autosafe    SACParams.autosafe_lam_mode=linear"
+#  "sac_autosafe_exp    sac_autosafe    SACParams.autosafe_lam_mode=exp"
+#  "sac_residual        sac_residual"
+#  "sac_simplex         sac_simplex"
+#  "sac_lyapunov        sac_lyapunov"
+#  "sac_lag             sac_lag"
+#  "sac_lam_opt         sac_lam         SACParams.sac_lam_mode=opt"
+#  "sac_lam_linear      sac_lam         SACParams.sac_lam_mode=linear"
+#  "sac_lam_exp         sac_lam         SACParams.sac_lam_mode=exp"
+  "sac_cbf             sac_cbf"
 )
 
 run() {

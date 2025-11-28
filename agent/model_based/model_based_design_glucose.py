@@ -1,5 +1,7 @@
 import numpy as np
 import math
+import cvxpy as cp
+
 ACTION_BOUND = 1.0 #todo double check action bound, to normalize the safe action space to [-1, 1]
 
 F = np.array([[0.1531, -708.6539,  -0.0965]]) / ACTION_BOUND # feedback law for the safe controller
@@ -104,3 +106,67 @@ class ModelbasedAgent:
 
 
 
+def cbf_filter_dt(x, u_nom, A=SYSTEM_A, B=SYSTEM_B, P=MATRIX_P,
+                             u_min=-1.0, u_max=1.0,
+                             V_max=1.0):
+    """
+    Lyapunov-based CBF filter for discrete-time linear system:
+        x_{k+1} = A x_k + B u_k
+
+    Safety constraint:
+        V_next = x_{k+1}^T P x_{k+1} <= V_max
+    where typically V_max = 1.0 if you've scaled P accordingly.
+
+    Returns:
+        u_safe: filtered control
+        certified: True if u_nom already satisfied Lyapunov constraint
+                   (QP returned u_nom), False otherwise
+        V_next_nom: V(x_{k+1}) under nominal control
+        V_next_safe: V(x_{k+1}) under filtered control
+    """
+    x = np.asarray(x).reshape(-1)
+    A = np.asarray(A)
+    B = np.asarray(B).reshape(-1, 1)   # ensure (n,1)
+    P = np.asarray(P)
+    u_nom = u_nom * ACTION_BOUND
+    n = A.shape[0]
+    assert A.shape == (n, n)
+    assert B.shape == (n, 1)
+    assert P.shape == (n, n)
+
+    # Nominal next state and Lyapunov value (for diagnostics)
+    # x_next_nom = A @ x + B.flatten() * u_nom
+    # V_now = float(x.T @ P @ x)
+    # V_next_nom = float(x_next_nom.T @ P @ x_next_nom)
+
+    # Optimization variable
+    u = cp.Variable()
+
+    # Next state in terms of u
+    x_next = A @ x + B.flatten() * u
+
+    # Objective: stay close to u_nom
+    objective = cp.Minimize(cp.square(u - u_nom))
+
+    # Lyapunov safety constraint: V_next <= V_max
+    lyap_constraint = cp.quad_form(x_next, P, assume_PSD=True) <= V_max
+
+    # Input bounds
+    constraints = [lyap_constraint, u >= u_min, u <= u_max]
+
+    prob = cp.Problem(objective, constraints)
+    prob.solve(solver=cp.SCS, warm_start=True, verbose=False)
+
+    if u.value is None:
+        # Infeasible or solver failed: fallback to clipped nominal
+        u_safe = float(np.clip(u_nom, u_min, u_max))
+        certified = False
+        # x_next_safe = A @ x + B.flatten() * u_safe
+        # V_next_safe = float(x_next_safe.T @ P @ x_next_safe)
+    else:
+        u_safe = float(u.value)
+        # x_next_safe = A @ x + B.flatten() * u_safe
+        # V_next_safe = float(x_next_safe.T @ P @ x_next_safe)
+        certified = abs(u_safe - u_nom) < 1e-6
+
+    return u_safe / ACTION_BOUND, certified

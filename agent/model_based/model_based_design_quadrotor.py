@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import cvxpy as cp
 ACTION_BOUND = 1.0  #todo double check action bound, to normalize the safe action space to [-1, 1], here we do it in the policy network due to the gravity compensation
 # GRAVITY_COMPENSATION = (0.25 * 0.027 * 9.8) / ACTION_BOUND
 F = np.array([[ 0.0248  ,  0.0438 ,   0.0247 ,   0.0437 ,  -0.1761 ,  -0.0279  , -0.3900  ,  0.3906  ,  0.6271   ,-0.0126  ,  0.0126  ,  0.0216] ,
@@ -23,12 +24,33 @@ MATRIX_P = np.array([[  0.1028 ,   0.1091 ,  -0.0000 ,  -0.0000 ,  -0.0000 ,  -0
 SAFE_CONTROLLER_STEP = 10  # think of distance|safe value based switching
 SAFE_CONTROLLER_ACTIVATE_THRESHOLD = 1.0
 
-SYSTEM_A = np.array([[1.0000, 0.0333, 0, 0],
-                     [0.6465, 1.5268, 2.1666, 0.4020],
-                     [0, 0, 1.0000, 0.0333],
-                     [-1.5151, -1.2348, -4.3123, 0.0577]])
+SYSTEM_A = np.array([
+    [1., 0.02, 0., 0., 0, 0., 0., 0., 0., 0., 0., 0. ],
+    [0., 1., 0., 0., 0., 0., 0., 0.196, 0., 0.,0., 0.] ,
+    [0., 0., 1., 0.02, 0., 0., 0., 0., 0., 0., 0., 0. ],
+    [0., 0., 0., 1., 0., 0., -0.196, 0., 0., 0.,0., 0.],
+    [0., 0., 0., 0., 1., 0.02, 0., 0., 0., 0., 0., 0. ],
+    [0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0 ],
+    [0., 0., 0., 0., 0., 0., 1., 0., 0., 0.02,0., 0. ],
+    [0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0.02, 0.],
+    [0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0.02],
+    [0., 0., 0., 0., 0., 0., 0., 0., 0., 1.,0., 0. ],
+    [0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0.],
+    [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,  0., 1 ]])
 
-SYSTEM_B = np.array([[0, 0.0334, 0, -0.0783]])
+SYSTEM_B = np.array([[0.         , 0.        ,  0.        ,  0.      ],
+    [ 0.         , 0.        ,  0.        ,  0.      ],
+     [0.         , 0.        ,  0.        ,  0.      ],
+    [ 0.         , 0.        ,  0.        ,  0.      ],
+     [0.         , 0.        ,  0.        ,  0.      ],
+     [0.74074074  , 0.74074074 ,  0.74074074 ,  0.74074074],
+     [0.         , 0.        ,  0.        ,  0.      ],
+     [0.         , 0.        ,  0.        ,  0.      ],
+     [0.         , 0.        ,  0.        ,  0.      ],
+     [40.10305602  ,40.10305602 ,-40.10305602 ,-40.10305602],
+     [-40.10305602  ,40.10305602 ,40.10305602 ,-40.10305602],
+     [-23.15814035  ,23.15814035 ,-23.15814035 , 23.15814035]
+])
 
 def activate_safe_controller_condition(state, activate_threshold=SAFE_CONTROLLER_ACTIVATE_THRESHOLD):
     safe_value = np.array(state).transpose() @ MATRIX_P @ np.array(state)
@@ -113,3 +135,69 @@ class ModelbasedAgent:
 
 
 
+def cbf_filter_dt(x, u_nom, A=SYSTEM_A, B=SYSTEM_B, P=MATRIX_P,
+                             u_min=-1.0, u_max=1.0,
+                             V_max=1.0):
+    """
+    Lyapunov-based CBF filter for discrete-time linear system:
+        x_{k+1} = A x_k + B u_k
+
+    Safety constraint:
+        V_next = x_{k+1}^T P x_{k+1} <= V_max
+    where typically V_max = 1.0 if you've scaled P accordingly.
+
+    Returns:
+        u_safe: filtered control
+        certified: True if u_nom already satisfied Lyapunov constraint
+                   (QP returned u_nom), False otherwise
+        V_next_nom: V(x_{k+1}) under nominal control
+        V_next_safe: V(x_{k+1}) under filtered control
+    """
+    x = np.asarray(x).reshape(-1, 1)
+    A = np.asarray(A)
+    B = np.asarray(B).reshape(-1, 4)   # ensure (n,1)
+    P = np.asarray(P)
+    u_nom = u_nom * ACTION_BOUND
+    u_nom = np.array(u_nom).reshape(4, 1)
+    n = A.shape[0]
+    assert A.shape == (n, n)
+    assert B.shape == (n, 4)
+    assert P.shape == (n, n)
+
+    # Nominal next state and Lyapunov value (for diagnostics)
+    # x_next_nom = A @ x + B @ u_nom
+    # V_now = float(x.T @ P @ x)
+    # V_next_nom = float(x_next_nom.T @ P @ x_next_nom)
+
+    # Optimization variable
+    u = cp.Variable((4,1))
+
+    # Next state in terms of u
+    x_next = A @ x + B @ u
+
+    # Objective: stay close to u_nom
+    objective = cp.Minimize(cp.sum_squares(u - u_nom))
+
+    # Lyapunov safety constraint: V_next <= V_max
+    lyap_constraint = cp.quad_form(x_next, P) <= V_max
+
+    # Input bounds
+    constraints = [lyap_constraint, u >= u_min, u <= u_max]
+
+    prob = cp.Problem(objective, constraints)
+    prob.solve(solver=cp.SCS, warm_start=True, verbose=False)
+
+    if u.value is None:
+        # Infeasible or solver failed: fallback to clipped nominal
+        u_safe = np.clip(u_nom, u_min, u_max).reshape(-1)
+        certified = False
+        # x_next_safe = A @ x + B.flatten() * u_safe
+        # V_next_safe = float(x_next_safe.T @ P @ x_next_safe)
+    else:
+        u_safe =u.value
+        # x_next_safe = A @ x + B.flatten() * u_safe
+        # V_next_safe = float(x_next_safe.T @ P @ x_next_safe)
+        u_safe = u_safe.reshape(-1)
+        certified = abs(u_safe - u_nom) < 1e-6
+
+    return u_safe / ACTION_BOUND, certified
