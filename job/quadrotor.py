@@ -4,7 +4,7 @@ import hydra
 import dataclasses
 import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+import numpy as np
 from gym_env.quadrotor.quadrotor import Quadrotor, QuadrotorGymConfig
 from job.job_config import JobConfig
 from agent.OffPolicyRL.SAC import SACConfig
@@ -71,6 +71,27 @@ def run(cfg: AllConfig) -> None:
         safe_agent = ModelbasedAgent()
         # in high frequency control tasks, we found that applying safe policy for multiple steps once triggered works better
         train(rl_agent, safe_agent, env, writer, cfg, safe_policy_steps=10)
+    elif cfg.JobParams.experiment_name == 'simplex_traj_eval':
+        from job.experiments.autosafe_eval_trajectory import evaluate_trajectory_simplex
+        observation_dim = env.observation_space.shape[0]
+        n_s = MATRIX_P.shape[0]
+        rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
+        safe_agent = ModelbasedAgent()
+        if cfg.SACParams.model_path != "":
+            a = rl_agent.get_action(np.zeros((observation_dim + n_s,)), mode='test')  # build network
+            rl_agent.load_weights(model_path=cfg.SACParams.model_path)
+        evaluate_trajectory_simplex(safe_agent, rl_agent, env, cfg, "quadrotor")
+    elif cfg.JobParams.experiment_name == 'autosafe_traj_eval':
+        from job.experiments.autosafe_eval_trajectory import evaluate_trajectory_autosafe
+        observation_dim = env.observation_space.shape[0]
+        n_s = MATRIX_P.shape[0]
+        agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F,
+                            lam_mode=cfg.SACParams.autosafe_lam_mode,
+                            tem_min=1.0, tem_max=25.0)
+        if cfg.SACParams.model_path != "":
+            a = agent.get_action(np.zeros((observation_dim + n_s,)), mode='test')  # build network
+            agent.load_weights(model_path=cfg.SACParams.model_path)
+        evaluate_trajectory_autosafe(agent, env, cfg, "quadrotor")
     elif cfg.JobParams.experiment_name == 'sac_cbf':
         from job.experiments.off_policy_cbf import train
         from agent.model_based.model_based_design_quadrotor import cbf_filter_dt

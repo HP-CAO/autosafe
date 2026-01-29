@@ -36,7 +36,7 @@ for SEED in "${SEEDS[@]}"; do
 #  run sac_lam_opt           sac_lam         "$SEED"  SACParams.sac_lam_mode=opt
 #  run sac_lam_linear        sac_lam         "$SEED"  SACParams.sac_lam_mode=linear
 #  run sac_lam_exp           sac_lam         "$SEED"  SACParams.sac_lam_mode=exp
-  run sac_cbf               sac_cbf        "$SEED"
+   run sac_cbf               sac_cbf        "$SEED"
 
   wait
   echo "[DONE] All experiments for seed=${SEED}"

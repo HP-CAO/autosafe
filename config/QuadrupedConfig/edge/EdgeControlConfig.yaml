@@ -72,7 +72,7 @@ ControlParams:
     - 8
     - 4
 JobParams:
-  gpu: true
+  gpu: false
   job_name: ''
   run_mode: train
   seed: 1

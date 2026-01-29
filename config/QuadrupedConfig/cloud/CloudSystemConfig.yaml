@@ -1,5 +1,5 @@
 JobParams:
-  gpu: true
+  gpu: false
   job_name: 'Cloud-Edge'
   run_mode: train
   seed: 1

@@ -114,10 +114,10 @@ class AutoSafeSAC:
         self.optimizer_critic = tf.keras.optimizers.Adam(learning_rate=self.params.learning_rate_critic)
         self.optimizer_critic_2 = tf.keras.optimizers.Adam(learning_rate=self.params.learning_rate_critic)
 
-        if self.params.model_path != '':
-            self.load_weights(self.params.model_path, mode=mode)
-        else:
-            self.hard_update()
+        # if self.params.model_path != '':
+        #     self.load_weights(self.params.model_path, mode=mode)
+        # else:
+        #     self.hard_update()
 
         self.get_summary()
 
@@ -169,9 +169,11 @@ class AutoSafeSAC:
         elif mode == 'test':
             # Deterministic action for evaluation
             action = get_action_mean(action_mean_learn, action_safe, lam)
+        elif mode == 'test_info':
+            action = get_action_mean(action_mean_learn, action_safe, lam)
+            return action.numpy(), lam.numpy(), tem.numpy()
         else:
             raise NotImplementedError(f"{mode} is not implemented")
-
         return action.numpy()
 
     @tf.function

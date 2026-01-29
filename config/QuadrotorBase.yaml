@@ -126,7 +126,7 @@ PPOParams:
   actor_activation: relu
   critic_activation: relu
 JobParams:
-  gpu: true
+  gpu: false
   job_name: ''
   run_mode: train
   seed: 1

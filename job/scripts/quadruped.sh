@@ -36,6 +36,7 @@
 #  run sac_lam_opt           sac_lam         "$SEED"  SACParams.sac_lam_mode=opt
 #  run sac_lam_linear        sac_lam         "$SEED"  SACParams.sac_lam_mode=linear
 #  run sac_lam_exp           sac_lam         "$SEED"  SACParams.sac_lam_mode=exp
+
 #
 #  wait
 #  echo "[DONE] All experiments for seed=${SEED}"
@@ -64,9 +65,10 @@ JOBS=(
 #  "sac_simplex         sac_simplex"
 #  "sac_lyapunov        sac_lyapunov"
 #  "sac_lag             sac_lag"
-  "sac_lam_opt         sac_lam         edge.SACParams.lam_mode=opt"
-  "sac_lam_linear      sac_lam         edge.SACParams.lam_mode=linear"
-  "sac_lam_exp         sac_lam         edge.SACParams.lam_mode=exp"
+#  "sac_lam_opt         sac_lam         edge.SACParams.lam_mode=opt"
+#  "sac_lam_linear      sac_lam         edge.SACParams.lam_mode=linear"
+#  "sac_lam_exp         sac_lam         edge.SACParams.lam_mode=exp"
+    "sac_cbf            sac_cbf"
 )
 
 run() {

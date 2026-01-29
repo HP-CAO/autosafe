@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SEEDS=(1 2 3 4 5)
-#SEEDS=(1)
+#SEEDS=(1 2 3 4 5)
+SEEDS=(1)
 MAX_STEPS=200000
 LOG_ROOT="outputs"
 ENV_NAME='cartpole'
@@ -31,9 +31,14 @@ for SEED in "${SEEDS[@]}"; do
 #   run sac_autosafe_opt_0.2  sac_autosafe   "$SEED"  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.2
 #   run sac_autosafe_opt_0.3  sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.3
 
-   run sac_simplex_0.0  sac_simplex   "$SEED"  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.0
-   run sac_simplex_0.2  sac_simplex   "$SEED"  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.2
-   run sac_simplex_0.3  sac_simplex    "$SEED"  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.3
+#   run sac_simplex_0.0  sac_simplex   "$SEED"  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.0
+   run sac_simplex_0.1  sac_simplex   1  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.1  # todd log triggering times
+   run sac_simplex_0.1  sac_simplex   2  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.1  # todd log triggering times
+   run sac_simplex_0.1  sac_simplex   3  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.1  # todd log triggering times
+   run sac_simplex_0.1  sac_simplex   4  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.1  # todd log triggering times
+   run sac_simplex_0.1  sac_simplex   5  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.1  # todd log triggering times
+#   run sac_simplex_0.2  sac_simplex   "$SEED"  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.2
+#   run sac_simplex_0.3  sac_simplex    "$SEED"  SACParams.autosafe_lam_mode=opt GymParams.TaskParams.control_goal_x=0.3
 
 #   run sac_cbf               sac_cbf        "$SEED"
 #  run sac_autosafe_linear   sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=linear

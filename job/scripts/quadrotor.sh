@@ -49,7 +49,7 @@ set -euo pipefail
 
 # ---- config ----
 SEEDS=(1 2 3 4 5)                     # no commas in bash arrays
-MAX_STEPS=500000
+MAX_STEPS=1000000
 LOG_ROOT="outputs"
 ENV_NAME="quadrotor"
 
