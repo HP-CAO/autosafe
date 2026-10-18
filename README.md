@@ -34,6 +34,21 @@ The exponent `p` controls how sharply the intervention ramps up.
   action (λ = 1). Right: λ as a function of the safety margin for different values of p.</em>
 </p>
 
+## Repository layout
+
+```
+agent/
+  OffPolicyRL/    SAC, SAC_AutoSafe, SAC_Lagrangian, SAC_Lam, replay buffer
+  model_based/    Model-based designs (P matrix / gains) per environment
+config/           Hydra base configs per environment
+gym_env/          CartPole, Quadrotor, Glucose and Quadruped environments
+job/
+  <env>.py        Hydra entry point per environment
+  experiments/    Training / evaluation loops per method
+  scripts/        Shell scripts that launch multi-seed experiments
+results/          Data processing and plotting scripts
+```
+
 **Methods** (selected with `JobParams.experiment_name`):
 
 | `experiment_name`      | Method                                                   |
@@ -51,21 +66,6 @@ The exponent `p` controls how sharply the intervention ramps up.
 Variants: `sac_autosafe_vary_cartpole` and `sac_autosafe_vary` (Quadrotor) (varying-parameter / obstacle
 settings), and `autosafe_traj_eval` / `simplex_traj_eval` (trajectory evaluation of trained agents).
 Not every method is available in every environment; check the `experiment_name` branches in `job/<env>.py`.
-
-## Repository layout
-
-```
-agent/
-  OffPolicyRL/    SAC, SAC_AutoSafe, SAC_Lagrangian, SAC_Lam, replay buffer
-  model_based/    Model-based designs (P matrix / gains) per environment
-config/           Hydra base configs per environment
-gym_env/          CartPole, Quadrotor, Glucose and Quadruped environments
-job/
-  <env>.py        Hydra entry point per environment
-  experiments/    Training / evaluation loops per method
-  scripts/        Shell scripts that launch multi-seed experiments
-results/          Data processing and plotting scripts
-```
 
 ## Setup
 
