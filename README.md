@@ -13,16 +13,18 @@ used to run and plot the experiments.
 
 ## Architecture
 
-AutoSafe composes the action of the learned policy, `a^θ`, with the action of a model-based safe controller,
-`a^safe`. The mixing weight `λ` is an exponential ramp of the normalized safety margin `Δ̃`. The final action is
-`ã = (1 − λ) · a^θ + λ · a^safe`.
+AutoSafe composes the action of the learned policy, $\mathbf{a}^{\theta}$, with the action of a model-based safe
+controller, $\mathbf{a}^{\mathrm{safe}}$. The mixing weight $\lambda$ is an exponential ramp of the normalized safety
+margin $\tilde{\Delta}$. The final action is
+
+$$\tilde{\mathbf{a}} = (1 - \lambda)\,\mathbf{a}^{\theta} + \lambda\,\mathbf{a}^{\mathrm{safe}}.$$
 
 <p align="center">
   <img src="assets/architecture.png" alt="AutoSafe action composition" width="55%"><br>
   <em>Action composition: the safety margin sets λ, which blends the learned and safe actions.</em>
 </p>
 
-Far from the safety boundary (`λ → 0`) the learned policy acts freely. As the margin shrinks, `λ` rises smoothly
+Far from the safety boundary ($\lambda \to 0$) the learned policy acts freely. As the margin shrinks, $\lambda$ rises smoothly
 to 1 at the boundary, shifting the action distribution toward the safe action rather than switching abruptly.
 The exponent `p` controls how sharply the intervention ramps up.
 
