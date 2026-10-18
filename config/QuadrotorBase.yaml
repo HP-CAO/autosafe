@@ -14,9 +14,9 @@ GymParams:
     normalized_rl_action_space: false
     task_info:
       stabilization_goal:
-        - 2.5
-        - 2.5
-        - 2.5
+        - 3.0
+        - 3.0
+        - 3.0
       stabilization_goal_tolerance: 0.05
       trajectory_type: circle
       num_cycles: 1
@@ -36,11 +36,11 @@ GymParams:
     cost_fn_type: rl_reward
     ctrl_freq: 40 # default 50
     ini_states:
-      init_x: 1.5
+      init_x: 1.0
       init_x_dot: 0
-      init_y: 1.5
+      init_y: 1.0
       init_y_dot: 0
-      init_z: 1.5
+      init_z: 1.0
       init_z_dot: 0
       init_theta: 0
       init_theta_dot: 0
@@ -78,7 +78,7 @@ SACParams:
   soft_alpha: 0.01
   learning_rate_actor: 0.0003
   learning_rate_critic: 0.0003
-  batch_size: 128
+  batch_size: 512
   target_network_frequency: 1
   noise_clip: 0.5
   entropy_alpha: 0.005
@@ -86,9 +86,9 @@ SACParams:
   model_path: ''
   total_training_steps: 500000
   replay_buffer_size: 500000
-  learning_starts: 128
+  learning_starts: 2000
   policy_update_frequency: 1
-  use_layer_norm: false
+  use_layer_norm: true
   actor_hidden_units:
   - 256
   - 256
@@ -99,6 +99,7 @@ SACParams:
   critic_activation: relu
   autosafe_lam_mode: opt
   sac_lam_mode: opt
+  delta_min: 0.6
 PPOParams:
   agent_name: PPO
   mode: train

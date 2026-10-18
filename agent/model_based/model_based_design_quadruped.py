@@ -127,11 +127,12 @@ def get_init_condition_in_safety_envelope(n_points_per_dim=1):
 
 
 class ModelbasedAgent:
-    def __init__(self):
+    def __init__(self, delta_min=0.0):
         self.feedback_law = F
         self.kp=KP
         self.kd=KD
         self.matrix_P = MATRIX_P
+        self.delta_min = delta_min
 
     def get_action(self, tracking_error):
         # action = np.squeeze( -1 * KP @ tracking_error[:6] -1 * KD @ tracking_error[6:])
@@ -141,14 +142,14 @@ class ModelbasedAgent:
 
     def safety_switch_on(self, tracking_error):
         # safety_value = tracking_error[2:] @ MATRIX_P[2:, 2:] @ tracking_error[2:].T
-        safety_value = tracking_error @ MATRIX_P @ tracking_error.T
-        return safety_value > 1
+        safety_value = tracking_error @ self.matrix_P @ tracking_error.T
+        return safety_value > (1 - self.delta_min)
 
 
 
 def cbf_filter_dt(x, u_nom, A=None, B=None, P=MATRIX_P,
                              u_min=-1.0, u_max=1.0,
-                             V_max=1.0):
+                             gamma=0.1):
     """
     Lyapunov-based CBF filter for discrete-time linear system:
         x_{k+1} = A x_k + B u_k
@@ -177,40 +178,26 @@ def cbf_filter_dt(x, u_nom, A=None, B=None, P=MATRIX_P,
     x = x[2:].reshape(-1, 1)
     # assert P.shape == (n, n)
 
-    # Nominal next state and Lyapunov value (for diagnostics)
-    # x_next_nom = A @ x + B @ u_nom
-    # V_now = float(x.T @ P @ x)
-    # V_next_nom = float(x_next_nom.T @ P @ x_next_nom)
+    # CBF bound: V(x_{k+1}) <= gamma + (1-gamma)*V(x_k)
+    # Note: uses partial state x[2:] and corresponding P[2:,2:]
+    V_now = float(x.T @ P @ x)
+    V_max_cbf = gamma + (1.0 - gamma) * V_now
 
-    # Optimization variable
     u = cp.Variable((6, 1))
-
-    # Next state in terms of u
     x_next = A @ x + B @ u
-
-    # Objective: stay close to u_nom
     objective = cp.Minimize(cp.sum_squares(u - u_nom))
-
-    # Lyapunov safety constraint: V_next <= V_max
-    lyap_constraint = cp.quad_form(x_next, P) <= V_max
-
-    # Input bounds
+    lyap_constraint = cp.quad_form(x_next, P, assume_PSD=True) <= V_max_cbf
     constraints = [lyap_constraint, u >= u_min, u <= u_max]
 
     prob = cp.Problem(objective, constraints)
     prob.solve(solver=cp.SCS, warm_start=True, verbose=False)
 
     if u.value is None:
-        # Infeasible or solver failed: fallback to clipped nominal
+        # Infeasible: fallback to clipped nominal
         u_safe = np.clip(u_nom, u_min, u_max).reshape(-1)
         certified = False
-        # x_next_safe = A @ x + B.flatten() * u_safe
-        # V_next_safe = float(x_next_safe.T @ P @ x_next_safe)
     else:
-        u_safe = u.value
-        # x_next_safe = A @ x + B.flatten() * u_safe
-        # V_next_safe = float(x_next_safe.T @ P @ x_next_safe)
-        u_safe = u_safe.reshape(-1)
-        certified = abs(u_safe - u_nom) < 1e-6
+        u_safe = u.value.reshape(-1)
+        certified = np.all(np.abs(u_safe - u_nom.reshape(-1)) < 1e-6)
 
     return u_safe / ACTION_BOUND, certified

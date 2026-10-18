@@ -49,7 +49,8 @@ def run(cfg: AllConfig) -> None:
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F,
-                            lam_mode=cfg.SACParams.autosafe_lam_mode, tem_min=1.0, tem_max=25.0)
+                            lam_mode=cfg.SACParams.autosafe_lam_mode, tem_min=1.0, tem_max=25.0,
+                            delta_min=cfg.SACParams.delta_min)
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'model_based':
         from job.experiments.model_based import evaluate
@@ -66,7 +67,7 @@ def run(cfg: AllConfig) -> None:
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
-        safe_agent = ModelbasedAgent()
+        safe_agent = ModelbasedAgent(delta_min=cfg.SACParams.delta_min)
         train(rl_agent, safe_agent, env, writer, cfg, safe_policy_steps=5)
     elif cfg.JobParams.experiment_name == 'sac_cbf':
         from job.experiments.off_policy_cbf import train
@@ -74,7 +75,7 @@ def run(cfg: AllConfig) -> None:
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
-        train(rl_agent, cbf_filter_dt, env, writer, cfg, safe_policy_steps=5)
+        train(rl_agent, cbf_filter_dt, env, writer, cfg, safe_policy_steps=1)
     elif cfg.JobParams.experiment_name == 'sac_lyapunov':
         from job.experiments.off_policy_lyapunov import train
         observation_dim = env.observation_space.shape[0]

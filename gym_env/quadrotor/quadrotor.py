@@ -241,6 +241,7 @@ class Quadrotor(BaseAviary):
             raise ValueError('[ERROR] in Quadrotor.__init__(), inertial_prop incorrect format.')
 
         # Create X_GOAL and U_GOAL references for the assigned task.
+        self.position_history = []
         self.U_GOAL = np.ones(self.action_dim) * self.MASS * self.GRAVITY_ACC / self.action_dim
         if self.TASK == Task.STABILIZATION:
             if self.QUAD_TYPE == QuadType.ONE_D:
@@ -264,6 +265,7 @@ class Quadrotor(BaseAviary):
                     self.TASK_INFO['stabilization_goal'][1], 0.0,
                     self.TASK_INFO['stabilization_goal'][2], 0.0,
                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0])  # create task mismatch for model-based init cond
+
 
         elif self.TASK == Task.TRAJ_TRACKING:
             POS_REF, VEL_REF, _ = self._generate_trajectory(
@@ -414,6 +416,7 @@ class Quadrotor(BaseAviary):
         # Return either an observation and dictionary or just the observation.
 
         self.step_in_episode = 0
+        self.position_history = []
 
         info = info | info_context
 
@@ -474,6 +477,8 @@ class Quadrotor(BaseAviary):
         super()._advance_simulation(rpm, disturb_force)
         # Standard Gym return.
         obs = self._get_observation()
+        if self.QUAD_TYPE == QuadType.THREE_D:
+            self.position_history.append((self.state[0], self.state[2], self.state[4]))
         rew = self._get_reward()
         done, crash = self._get_done()  # reach the goal or out of bound
         info = self._get_info()
@@ -1054,4 +1059,80 @@ class Quadrotor(BaseAviary):
                 task_list.append({'init_states': [0, 0, ran_theta, 0], 'control_goal': [x_goal, 0]})
                 task_list.append({'init_states': [0, 0, ran_theta, 0], 'control_goal': [x_goal, 0]})
         return task_list
+
+    def save_trajectory(self, path, total_reward=None,
+                        obstacle_center=None, obstacle_half=None):
+        """Save a 3D plot of the episode trajectory with start, goal, and optional box obstacle."""
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+        if not self.position_history:
+            return
+
+        history = np.array(self.position_history)   # (T, 3): x, y, z
+        goal_pos = np.array([
+            self.model_based_equilibrium[0],
+            self.model_based_equilibrium[2],
+            self.model_based_equilibrium[4],
+        ])
+
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(111, projection='3d')
+
+        # Trajectory
+        ax.plot(history[:, 0], history[:, 1], history[:, 2],
+                color='steelblue', linewidth=1.5, label='Trajectory')
+
+        # Start and goal markers
+        ax.scatter(*history[0], color='green', s=100, marker='o',
+                   label='Start', zorder=5, depthshade=False)
+        ax.scatter(*goal_pos, color='red', s=150, marker='*',
+                   label='Goal', zorder=5, depthshade=False)
+
+        # Box obstacle
+        if obstacle_center is not None and obstacle_half is not None:
+            cx, cy, cz = obstacle_center
+            h = obstacle_half
+            # 8 corners of the box
+            c = np.array([
+                [cx-h, cy-h, cz-h], [cx+h, cy-h, cz-h],
+                [cx+h, cy+h, cz-h], [cx-h, cy+h, cz-h],
+                [cx-h, cy-h, cz+h], [cx+h, cy-h, cz+h],
+                [cx+h, cy+h, cz+h], [cx-h, cy+h, cz+h],
+            ])
+            # 6 semi-transparent faces
+            faces = [
+                [c[0], c[1], c[2], c[3]],  # bottom  (z-)
+                [c[4], c[5], c[6], c[7]],  # top     (z+)
+                [c[0], c[1], c[5], c[4]],  # front   (y-)
+                [c[2], c[3], c[7], c[6]],  # back    (y+)
+                [c[0], c[3], c[7], c[4]],  # left    (x-)
+                [c[1], c[2], c[6], c[5]],  # right   (x+)
+            ]
+            poly = Poly3DCollection(faces, alpha=0.25,
+                                    facecolor='orange', edgecolor='darkorange')
+            ax.add_collection3d(poly)
+            # Wireframe edges for clarity
+            edges = [
+                [0,1],[1,2],[2,3],[3,0],
+                [4,5],[5,6],[6,7],[7,4],
+                [0,4],[1,5],[2,6],[3,7],
+            ]
+            for e in edges:
+                ax.plot3D(*zip(c[e[0]], c[e[1]]),
+                          color='darkorange', linewidth=1.0)
+            ax.scatter(*obstacle_center, color='darkorange', s=40, marker='x',
+                       label=f'Obstacle ({2*obstacle_half:.2f} m box)', zorder=5)
+
+        ax.set_xlabel('x (m)')
+        ax.set_ylabel('y (m)')
+        ax.set_zlabel('z (m)')
+        title = '3D Quadrotor Trajectory'
+        if total_reward is not None:
+            title += f'  |  Return: {total_reward:.2f}'
+        ax.set_title(title)
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(path, dpi=150)
+        plt.close(fig)
 

@@ -4,6 +4,7 @@ from agent.OffPolicyRL.ReplayBuffer import ReplayMemory
 from agent.utils import log_info, setup_logger
 from tqdm import tqdm
 import numpy as np
+import time
 logger = setup_logger()
 
 def train(rl_agent, safe_agent, env, writer, cfg):
@@ -15,18 +16,22 @@ def train(rl_agent, safe_agent, env, writer, cfg):
     ep = 0
     accumulated_term = 0
 
-
     while global_step < cfg.SACParams.total_training_steps:
         obs, _ = env.reset(seed=cfg.JobParams.seed, options={"mode": "train"})
         episodic_return = []
         tracking_error = env.state - env.model_based_equilibrium
         obs_aug = np.append(obs, tracking_error)
+        inference_time_list = []
+        optimization_time_list = []
 
         for _ in range(cfg.GymParams.TaskParams.max_episode_steps):
 
+            t_1_start = time.perf_counter()
             rl_action = rl_agent.get_action(obs_aug, mode='train').squeeze()
             safe_action = safe_agent.get_action(tracking_error).squeeze()
             action = np.clip(rl_action + safe_action, -1, 1)
+            inference_time_list.append(time.perf_counter() - t_1_start)
+
             next_obs, rewards, terminations, trunc, infos = env.step(action)
             tracking_error = env.state - env.model_based_equilibrium
 
@@ -39,7 +44,9 @@ def train(rl_agent, safe_agent, env, writer, cfg):
 
             if global_step > cfg.SACParams.learning_starts:
                 mini_batch = replay_mem.sample(cfg.SACParams.batch_size)
+                t_2_start = time.perf_counter()
                 agent_info = rl_agent.optimize(mini_batch)
+                optimization_time_list.append(time.perf_counter() - t_2_start)
                 log_info(writer, global_step, agent_info, 'agent', period=100)
 
             if global_step % cfg.GymParams.TaskParams.evaluation_period == 0:
@@ -72,6 +79,8 @@ def train(rl_agent, safe_agent, env, writer, cfg):
         writer.add_scalar("training/episodic_return_ep", training_info['episodic_return'], ep)
         writer.add_scalar("training/termination_ep", accumulated_term, ep)
         writer.add_scalar("training/termination_steps", accumulated_term, global_step)
+        writer.add_scalar("training/inference_time", np.mean(inference_time_list), global_step)
+        writer.add_scalar("training/optimization_time", np.mean(optimization_time_list) if optimization_time_list else 0, global_step)
 
 def evaluate(rl_agent, safe_agent, env, writer, cfg, global_step, global_episode):
     logger.info("Start evaluating the agent...")

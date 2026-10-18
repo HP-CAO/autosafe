@@ -37,6 +37,7 @@ class SACConfig:
     critic_activation: str = 'relu'
     sac_lam_mode:str = 'opt'
     autosafe_lam_mode:str = 'opt'
+    delta_min: float = 0.0
 
 
 def build_mlp(input_layer, hidden_units, activation, use_layer_norm=False):

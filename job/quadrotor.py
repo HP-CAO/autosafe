@@ -51,7 +51,21 @@ def run(cfg: AllConfig) -> None:
         n_s = MATRIX_P.shape[0]
         agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0], MATRIX_P, F,
                             lam_mode=cfg.SACParams.autosafe_lam_mode,
-                            tem_min=1, tem_max=25)
+                            tem_min=1, tem_max=25,
+                            delta_min=cfg.SACParams.delta_min)
+        train(agent, env, writer, cfg)
+
+    elif cfg.JobParams.experiment_name == 'sac_autosafe_vary':
+        from job.experiments.off_policy_autosafe_vary_quadrotor import train
+        from agent.OffPolicyRL.SAC_AutoSafe_Vary import AutoSafeSACVary
+        observation_dim = env.observation_space.shape[0]
+        n_s = MATRIX_P.shape[0]
+        # obs_aug layout: [obs | rescale_ratio(1) | safety_error(n_s) | task_error(n_s)]
+        agent = AutoSafeSACVary(cfg.SACParams, observation_dim + 1 + 2 * n_s, env.action_space.shape[0],
+                                MATRIX_P, F,
+                                lam_mode=cfg.SACParams.autosafe_lam_mode,
+                                tem_min=1, tem_max=25,
+                                delta_min=cfg.SACParams.delta_min)
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'model_based':
         from job.experiments.model_based import evaluate
@@ -68,7 +82,7 @@ def run(cfg: AllConfig) -> None:
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
-        safe_agent = ModelbasedAgent()
+        safe_agent = ModelbasedAgent(delta_min=cfg.SACParams.delta_min)
         # in high frequency control tasks, we found that applying safe policy for multiple steps once triggered works better
         train(rl_agent, safe_agent, env, writer, cfg, safe_policy_steps=10)
     elif cfg.JobParams.experiment_name == 'simplex_traj_eval':
@@ -98,7 +112,7 @@ def run(cfg: AllConfig) -> None:
         observation_dim = env.observation_space.shape[0]
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, env.action_space.shape[0])
-        train(rl_agent, cbf_filter_dt, env, writer, cfg, safe_policy_steps=5)
+        train(rl_agent, cbf_filter_dt, env, writer, cfg, safe_policy_steps=1)
     elif cfg.JobParams.experiment_name == 'sac_lyapunov':
         from job.experiments.off_policy_lyapunov import train
         observation_dim = env.observation_space.shape[0]

@@ -89,3 +89,5 @@ __pycache__
 __pycache__/
 /wandb
 /results
+.claude
+agent/OnPolicyRL

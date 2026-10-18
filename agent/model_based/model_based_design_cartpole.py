@@ -39,59 +39,45 @@ def safety_violation_condition(state):
         return False
 
 
-def get_init_condition_in_safety_envelope(n_points_per_dim=1):
-    eigen_values, eigen_vectors = np.linalg.eig(MATRIX_P)  # get eigen value and eigen vector
+def get_init_condition_in_safety_envelope(n_samples=1):
+    """
+    Sample n_samples points on the 4D safety envelope boundary s^T P s = 1.
 
+    Uses the same spherical-coordinate approach as the quadrotor version:
+    draw 3 uniform random angles, map to a unit vector via the standard
+    4-sphere map, then scale by 1/sqrt(λ_i) so that s^T P s = 1 exactly.
+    """
+    P_sym = (MATRIX_P + MATRIX_P.T) / 2
+    eigen_values, eigen_vectors = np.linalg.eigh(P_sym)
     Q = eigen_vectors
+    lam = eigen_values
+    n_dim = MATRIX_P.shape[0]
 
     initial_condition_list = []
+    for _ in range(n_samples):
+        # angles[0..n_dim-3] in [0, pi], angles[n_dim-2] in [0, 2*pi]
+        angles = np.random.uniform(0, math.pi, n_dim - 1)
+        angles[-1] *= 2
 
-    for i in range(n_points_per_dim):
-        # angle_1 = i * math.pi / n_points_per_dim
-        angle_1 = np.random.uniform(0, math.pi)
-        y0 = math.sqrt(1 / eigen_values[0]) * math.cos(angle_1)
-        vector_in_3d = math.sin(angle_1)
+        z = np.empty(n_dim)
+        sin_prod = 1.0
+        for k in range(n_dim - 1):
+            z[k] = sin_prod * math.cos(angles[k])
+            sin_prod *= math.sin(angles[k])
+        z[-1] = sin_prod
 
-        if vector_in_3d == 0:
-            y1 = 0
-            y2 = 0
-            y3 = 0
-            s = Q @ np.array([y0, y1, y2, y3]).transpose()
-            # print(s.transpose() @ P_matrix_4 @ s)
-            initial_condition_list.append([s[0], s[1], s[2], s[3]])
-            continue
+        y = z / np.sqrt(lam)
+        s = Q @ y
+        initial_condition_list.append(s.tolist())
 
-        for k in range(n_points_per_dim):
-            # angle_2 = k * math.pi / n_points_per_dim
-            angle_2 = np.random.uniform(0, math.pi)
-            y1 = vector_in_3d * math.sqrt(1 / eigen_values[1]) * math.cos(angle_2)
-            vector_in_2d = vector_in_3d * math.sin(angle_2)
-
-            if vector_in_2d == 0:
-                y2 = 0
-                y3 = 0
-                s = Q @ np.array([y0, y1, y2, y3]).transpose()
-                # print(s.transpose() @ P_matrix_4 @ s)
-                initial_condition_list.append([s[0], s[1], s[2], s[3]])
-                continue
-
-            for j in range(n_points_per_dim):
-                # angle_3 = j * math.pi / n_points_per_dim
-                angle_3 = np.random.uniform(0, math.pi)
-                y2 = vector_in_2d * math.sqrt(1 / eigen_values[2]) * math.cos(angle_3)
-                y3 = vector_in_2d * math.sqrt(1 / eigen_values[3]) * math.sin(angle_3)
-                s = Q @ np.array([y0, y1, y2, y3]).transpose()
-                # print(s.transpose() @ MATRIX_P @ s)
-                initial_condition_list.append([s[0], s[1], s[2], s[3]])
-
-    # print(f"Generating {len(initial_condition_list)} conditions for training ...")
     return initial_condition_list
 
 
 class ModelbasedAgent:
-    def __init__(self, feedback_law=F, action_bound=ACTION_BOUND):
+    def __init__(self, feedback_law=F, action_bound=ACTION_BOUND, delta_min=0.0):
         self.feedback_law = feedback_law
         self.matrix_P = MATRIX_P
+        self.delta_min = delta_min
 
 
     def get_action(self, tracking_error):
@@ -105,8 +91,8 @@ class ModelbasedAgent:
         return  action_abs
 
     def safety_switch_on(self, tracking_error):
-        safety_value = tracking_error @ MATRIX_P @ tracking_error.T
-        return safety_value > 1
+        safety_value = tracking_error @ self.matrix_P @ tracking_error.T
+        return safety_value > (1 - self.delta_min)
 
 
 def cbf_data_linear_dt(x, A, B, p_max, th_max, gamma):
@@ -191,9 +177,69 @@ def cbf_data_linear_dt(x, A, B, p_max, th_max, gamma):
 #         return float(np.clip(u.value, u_min, u_max)) / ACTION_BOUND, True
 
 
+def test_visualize_safety_envelope(n=3):
+    """
+    Test get_init_condition_in_safety_envelope by projecting the n^3 sampled
+    4D boundary points onto 2D planes. With enough samples the scatter approximates
+    the 2D projection of the safety envelope.
+    """
+    import matplotlib.pyplot as plt
+
+    init_conditions = np.array(get_init_condition_in_safety_envelope(n_samples=n))
+    n_total = len(init_conditions)
+
+    projections = [
+        (0, 2, 'x (position)', r'$\theta$ (angle)'),
+        (1, 3, r'$\dot{x}$ (velocity)', r'$\dot{\theta}$ (angular vel.)'),
+    ]
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    def draw_ellipse(ax, M, **kwargs):
+        ev, evec = np.linalg.eigh(M)
+        t = np.linspace(0, 2 * np.pi, 500)
+        pts = evec @ np.diag(1.0 / np.sqrt(ev)) @ np.array([np.cos(t), np.sin(t)])
+        ax.plot(pts[0], pts[1], **kwargs)
+
+    for ax, (i, j, xlabel, ylabel) in zip(axes, projections):
+        A_idx, B_idx = [i, j], [k for k in range(4) if k not in (i, j)]
+        P_AA = MATRIX_P[np.ix_(A_idx, A_idx)]
+        P_BB = MATRIX_P[np.ix_(B_idx, B_idx)]
+        P_AB = MATRIX_P[np.ix_(A_idx, B_idx)]
+        S = P_AA - P_AB @ np.linalg.inv(P_BB) @ P_AB.T  # Schur complement = true 2D projection
+
+        ax.scatter(init_conditions[:, i], init_conditions[:, j],
+                   s=8, alpha=0.5, c='steelblue',
+                   label=f'Sampled ICs (n={n}, N={n_total})')
+        draw_ellipse(ax, S,    color='crimson',   linewidth=2, linestyle='-',  label='Schur complement (true 2D projection)')
+        draw_ellipse(ax, P_AA, color='darkorange', linewidth=2, linestyle='--', label='Cross-section ($x_{other}=0$)')
+
+        if i == 0 and j == 2:
+            for xb in [-0.9, 0.9]:
+                ax.axvline(xb, color='gray', linestyle=':', linewidth=1, alpha=0.7)
+            for yb in [-0.8, 0.8]:
+                ax.axhline(yb, color='gray', linestyle=':', linewidth=1, alpha=0.7,
+                           label='Safety bounds' if yb == -0.8 else None)
+
+        ax.set_xlabel(xlabel, fontsize=11)
+        ax.set_ylabel(ylabel, fontsize=11)
+        ax.set_title(f'Projected safety envelope: {xlabel} vs {ylabel}', fontsize=12)
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+        ax.set_aspect('equal')
+
+    plt.tight_layout()
+    plt.savefig('safety_envelope_2d.pdf', bbox_inches='tight')
+    plt.show()
+
+    print(f"Sampled {n_total} points with n={n}")
+    violations = sum(1 for s in init_conditions if s @ MATRIX_P @ s > 1.0 + 1e-6)
+    print(f"Safety envelope violations: {violations} / {n_total}")
+
+
 def cbf_filter_dt(x, u_nom, A=SYSTEM_A, B=SYSTEM_B, P=MATRIX_P,
                              u_min=-20.0, u_max=20.0,
-                             V_max=0.1):
+                             gamma=0.1):
     """
     Lyapunov-based CBF filter for discrete-time linear system:
         x_{k+1} = A x_k + B u_k
@@ -219,39 +265,30 @@ def cbf_filter_dt(x, u_nom, A=SYSTEM_A, B=SYSTEM_B, P=MATRIX_P,
     assert B.shape == (n, 1)
     assert P.shape == (n, n)
 
-    # Nominal next state and Lyapunov value (for diagnostics)
-    x_next_nom = A @ x + B.flatten() * u_nom
-    # V_now = float(x.T @ P @ x)
-    # V_next_nom = float(x_next_nom.T @ P @ x_next_nom)
+    # CBF bound: V(x_{k+1}) <= gamma + (1-gamma)*V(x_k)
+    # enforces h(x_{k+1}) >= (1-gamma)*h(x_k) for h(x) = 1 - x^T P x
+    V_now = float(x @ P @ x)
+    V_max_cbf = gamma + (1.0 - gamma) * V_now
 
-    # Optimization variable
     u = cp.Variable()
-
-    # Next state in terms of u
     x_next = A @ x + B.flatten() * u
-
-    # Objective: stay close to u_nom
     objective = cp.Minimize(cp.square(u - u_nom))
-
-    # Lyapunov safety constraint: V_next <= V_max
-    lyap_constraint = cp.quad_form(x_next, P) <= V_max
-
-    # Input bounds
+    lyap_constraint = cp.quad_form(x_next, P, assume_PSD=True) <= V_max_cbf
     constraints = [lyap_constraint, u >= u_min, u <= u_max]
 
     prob = cp.Problem(objective, constraints)
     prob.solve(solver=cp.SCS, warm_start=True, verbose=False)
 
     if u.value is None:
-        # Infeasible or solver failed: fallback to clipped nominal
-        u_safe = float(np.clip(u_nom, u_min, u_max))
+        # Infeasible: fallback to safe LQR policy
+        u_safe = float(np.clip(float(np.dot(F.flatten() * ACTION_BOUND, x)), u_min, u_max))
         certified = False
-        # x_next_safe = A @ x + B.flatten() * u_safe
-        # V_next_safe = float(x_next_safe.T @ P @ x_next_safe)
     else:
         u_safe = float(u.value)
-        # x_next_safe = A @ x + B.flatten() * u_safe
-        # V_next_safe = float(x_next_safe.T @ P @ x_next_safe)
         certified = abs(u_safe - u_nom) < 1e-6
 
-    return u_safe / ACTION_BOUND, certified
+    return np.clip(u_safe / ACTION_BOUND, -1, 1), certified
+
+
+if __name__ == '__main__':
+    test_visualize_safety_envelope(n=100000)

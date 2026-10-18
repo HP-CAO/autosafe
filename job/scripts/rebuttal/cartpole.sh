@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SEEDS=(1 2 3 4 5)
+#SEEDS=(4 5)
 #SEEDS=(1)
 MAX_STEPS=200000
 LOG_ROOT="outputs"
@@ -27,8 +28,12 @@ for SEED in "${SEEDS[@]}"; do
   # launch all variants in parallel for this SEED
 #  run model_based           model_based     "$SEED"
 #  run sac_base              sac_base        "$SEED"
-#   run sac_autosafe_opt      sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=opt
-   run sac_cbf               sac_cbf        "$SEED"
+#   run sac_autosafe_opt_delta_0       sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=opt SACParams.delta_min=0.0
+#   run sac_autosafe_opt_delta_25      sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=opt SACParams.delta_min=0.25
+#   run sac_autosafe_opt_delta_50      sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=opt SACParams.delta_min=0.5
+#   run sac_autosafe_opt_delta_75      sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=opt SACParams.delta_min=0.75
+#   run sac_autosafe_opt_delta_100     sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=opt SACParams.delta_min=1.0
+#   run sac_cbf               sac_cbf        "$SEED"
 #  run sac_autosafe_linear   sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=linear
 #  run sac_autosafe_exp      sac_autosafe    "$SEED"  SACParams.autosafe_lam_mode=exp
 #  run sac_residual          sac_residual    "$SEED"
@@ -38,7 +43,11 @@ for SEED in "${SEEDS[@]}"; do
 #  run sac_lam_opt           sac_lam         "$SEED"  SACParams.sac_lam_mode=opt
 #  run sac_lam_linear        sac_lam         "$SEED"  SACParams.sac_lam_mode=linear
 #  run sac_lam_exp           sac_lam         "$SEED"  SACParams.sac_lam_mode=exp
-
+   run sac_simplex_delta_0       sac_simplex    "$SEED"  SACParams.delta_min=0.0
+   run sac_simplex_delta_25      sac_simplex    "$SEED"  SACParams.delta_min=0.25
+   run sac_simplex_delta_50      sac_simplex    "$SEED"  SACParams.delta_min=0.5
+   run sac_simplex_delta_75      sac_simplex    "$SEED"  SACParams.delta_min=0.75
+   run sac_simplex_delta_100     sac_simplex    "$SEED"  SACParams.delta_min=1.0
   wait
   echo "[DONE] All experiments for seed=${SEED}"
 done

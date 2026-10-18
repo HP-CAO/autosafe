@@ -20,6 +20,9 @@ GymParams:
     - 0.0
     control_goal_x: 0.1
     control_goal_theta: 0.0
+    control_goal:
+    - 0.0
+    - 0.0
     max_episode_steps: 500
     evaluation_period: 10000
     num_episodes_to_run: 1
@@ -63,6 +66,7 @@ SACParams:
   critic_activation: relu
   autosafe_lam_mode: opt
   sac_lam_mode: opt
+  delta_min: 0.0
 PPOParams:
   agent_name: PPO
   mode: train
@@ -96,5 +100,5 @@ JobParams:
   seed: 1
   capture_video: false
   output_path: ''
-  experiment_name: 'sac_base'
+  experiment_name: 'sac_autosafe_vary'
   env_name: 'cartpole'

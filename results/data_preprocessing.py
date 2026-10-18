@@ -10,7 +10,29 @@ case_study_list = ["cartpole", "glucose", "quadrotor", "quadruped"]
 algorithm_list = ["model_based", "sac_base", "sac_autosafe_exp", "sac_autosafe_linear", "sac_autosafe_opt_cor",
                   "sac_autosafe_opt", "sac_lag", "sac_lam_exp", "sac_lam_linear", "sac_cbf",
                   "sac_lam_opt", "sac_lyapunov", "sac_residual", "sac_simplex", "sac_autosafe_opt_0.0",
-                  "sac_autosafe_opt_0.2","sac_autosafe_opt_0.3","sac_simplex_0.0","sac_simplex_0.2","sac_simplex_0.3", "sac_simplex_0.1"]
+                  "sac_autosafe_opt_0.2","sac_autosafe_opt_0.3","sac_simplex_0.0","sac_simplex_0.2","sac_simplex_0.3", "sac_simplex_0.1",
+                  "sac_autosafe_opt_delta_0",
+                  "sac_autosafe_opt_delta_25",
+                  "sac_autosafe_opt_delta_50",
+                  "sac_autosafe_opt_delta_75",
+                  "sac_autosafe_opt_delta_100",
+                  "sac_simplex_delta_0",
+                  "sac_simplex_delta_25",
+                  "sac_simplex_delta_50",
+                  "sac_simplex_delta_75",
+                  "sac_simplex_delta_100",
+                  "model_based_wall_time",
+                  "sac_base_wall_time",
+                  "sac_cbf_wall_time",
+                  "sac_autosafe_opt_wall_time",
+                  "sac_residual_wall_time",
+                  "sac_simplex_wall_time",
+                  "sac_lyapunov_wall_time",
+                  "sac_lag_wall_time",
+                  "sac_lam_opt_wall_time",
+                  "sac_autosafe_vary"
+                  ]
+
 
 data_info = {}
 for case in case_study_list:
@@ -64,12 +86,15 @@ for file_name in tqdm.tqdm(all_file):
             save_name = seed # run number
 
             print(f"Processing {case_study_name} {algo_name} {save_name}")
-            data_info[case_study_name][algo_name].append(save_name)
-            save_path = os.path.join(root_path, case_study_name, algo_name, save_name + ".csv")
-            print(tensorboard_event_path)
+            try:
+                data_info[case_study_name][algo_name].append(save_name)
+                save_path = os.path.join(root_path, case_study_name, algo_name, save_name + ".csv")
+            except:
+                print(f"Error processing {case_study_name} {algo_name} {save_name}, skipping.")
             cvs_file = parse_event_to_csv(tensorboard_event_path, save_path)
 
 print(f"Data parsing completed successfully, all data are saved to {data_info_json_path}")
+
 f = open(data_info_json_path, "w")
 json_data = json.dumps(data_info, default=lambda o: o.__dict__, indent=4)
 f.write(json_data)

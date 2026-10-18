@@ -44,6 +44,7 @@ SACParams:
   critic_activation: relu
   autosafe_lam_mode: opt
   sac_lam_mode: opt
+  delta_min: 0.0
 PPOParams:
   agent_name: PPO
   mode: train
@@ -71,7 +72,7 @@ PPOParams:
   actor_activation: relu
   critic_activation: relu
 JobParams:
-  gpu: true
+  gpu: false
   job_name: 'glucose'
   run_mode: train
   seed: 1

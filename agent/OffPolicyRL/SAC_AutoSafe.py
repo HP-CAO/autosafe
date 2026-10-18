@@ -85,7 +85,7 @@ def get_action_mean(action_mean_learn, action_safe, lam):
 
 class AutoSafeSAC:
     def __init__(self, params: SACConfig, shape_observations, shape_action, P_matrix, F_matrix,
-                 mode='train', lam_mode='opt', tem_min=1.0, tem_max=25.0,):
+                 mode='train', lam_mode='opt', tem_min=1.0, tem_max=25.0, delta_min = 0.0):
         self.params = params
         self.shape_action = shape_action
         self.critic_update_step = 0
@@ -93,7 +93,7 @@ class AutoSafeSAC:
 
         if self.lam_mode == 'opt':
             from agent.AutoSafe import AutoSafeActor
-            self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN, tem_min, tem_max)
+            self.actor = AutoSafeActor(shape_action, P_matrix, F_matrix, LOG_STD_MAX, LOG_STD_MIN, tem_min, tem_max, delta_min)
         elif self.lam_mode == 'linear':
             from agent.AutoSafe import AutoSafeActorSchedule
             self.actor = AutoSafeActorSchedule(shape_action, P_matrix,

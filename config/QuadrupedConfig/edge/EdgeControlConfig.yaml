@@ -60,7 +60,8 @@ SACParams:
   actor_activation: relu
   critic_activation: relu
   autosafe_lam_mode: opt
-  lam_mode: opt
+  sac_lam_mode: opt
+  delta_min: 0.0
 ControlParams:
   frequency: 300
   initialize_from_cloud: false

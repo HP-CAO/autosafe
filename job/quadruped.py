@@ -108,7 +108,8 @@ def run(cfg: Config) -> None:
         from job.experiments.off_policy_autosafe import train
         n_s = MATRIX_P.shape[0]
         agent = AutoSafeSAC(cfg.SACParams, observation_dim + n_s, shape_action, MATRIX_P, F,
-                            lam_mode=cfg.SACParams.autosafe_lam_mode, tem_min=1.0, tem_max=25.0)
+                            lam_mode=cfg.SACParams.autosafe_lam_mode, tem_min=1.0, tem_max=25.0,
+                            delta_min=cfg.SACParams.delta_min)
         train(agent, env, writer, cfg)
     elif cfg.JobParams.experiment_name == 'model_based':
         from job.experiments.model_based import evaluate
@@ -124,12 +125,12 @@ def run(cfg: Config) -> None:
         from agent.model_based.model_based_design_quadruped import cbf_filter_dt
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, shape_action)
-        train(rl_agent, cbf_filter_dt, env, writer, cfg, safe_policy_steps=5)
+        train(rl_agent, cbf_filter_dt, env, writer, cfg, safe_policy_steps=1)
     elif cfg.JobParams.experiment_name == 'sac_simplex':
         from job.experiments.off_policy_simplex import train
         n_s = MATRIX_P.shape[0]
         rl_agent = SACAgent(cfg.SACParams, observation_dim + n_s, shape_action)
-        safe_agent = ModelbasedAgent()
+        safe_agent = ModelbasedAgent(delta_min=cfg.SACParams.delta_min)
         train(rl_agent, safe_agent, env, writer, cfg, safe_policy_steps=10)
     elif cfg.JobParams.experiment_name == 'sac_lyapunov':
         from job.experiments.off_policy_lyapunov import train
@@ -147,12 +148,11 @@ def run(cfg: Config) -> None:
     elif cfg.JobParams.experiment_name == 'sac_lam':
         from job.experiments.off_policy_lam import train
         from agent.OffPolicyRL.SAC_Lam import SACAgentLam
-        
         n_s = MATRIX_P.shape[0]
         safe_agent = ModelbasedAgent()
         # we need to include the value of lam to make the mdp stationary
         rl_agent = SACAgentLam(cfg.SACParams, observation_dim + n_s + 1, shape_action, safe_agent=safe_agent)
-        train(rl_agent, safe_agent, env, writer, cfg, mode=cfg.SACParams.lam_mode)
+        train(rl_agent, safe_agent, env, writer, cfg, mode=cfg.SACParams.sac_lam_mode)
     else:
         print("Experiment name not recognized. Please check the configuration.")
 
