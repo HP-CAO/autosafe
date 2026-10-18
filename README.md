@@ -6,16 +6,25 @@
 
 ## Overview
 
-AutoSafe is a safe-RL architecture for neural policies. A learned DRL policy is combined with a model-based
-safe controller, and the blend between the two is set by a safety conditioned coefficient `λ`.
+AutoSafe is a safe policy architecture for **safe online reinforcement learning**, where a policy must satisfy
+safety constraints *while it is still learning* from real interaction. Strict action interventions enforce safety
+but cause discontinuities in interaction and learning, while soft constraint regularization optimizes smoothly but
+gives little safety assurance.
+
+AutoSafe builds safety monitoring and intervention directly into action generation. It monitors the current
+safety margin and uses it to move smoothly between performance-driven and safety-preserving behavior. We
+realize this with a certified, lightweight model-based safety filter, so AutoSafe inherits the filter's safety
+guarantees under the same assumptions.
+
 This repository contains the AutoSafe implementation, the baselines it is compared against, and the scripts
 used to run and plot the experiments.
 
 ## Architecture
 
-AutoSafe composes the action of the learned policy, $\mathbf{a}^{\theta}$, with the action of a model-based safe
-controller, $\mathbf{a}^{\mathrm{safe}}$. The mixing weight $\lambda$ is an exponential ramp of the normalized safety
-margin $\tilde{\Delta}$. The final action is
+AutoSafe has two parts: a safety monitor and an action composer. The monitor computes the normalized safety
+margin $\tilde{\Delta}$ of the current state. The composer then blends the learned policy's action,
+$\mathbf{a}^{\theta}$, with the action of a model-based safe controller, $\mathbf{a}^{\mathrm{safe}}$, using a
+weight $\lambda$ that is an exponential ramp of $\tilde{\Delta}$. The final action is
 
 $$\tilde{\mathbf{a}} = (1 - \lambda)\,\mathbf{a}^{\theta} + \lambda\,\mathbf{a}^{\mathrm{safe}}.$$
 

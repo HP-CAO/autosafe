@@ -1,3 +1,5 @@
+# AutoSafe policy architecture: monitors the safety margin and blends the learned and
+# model-based safe actions. It serves as the policy in DRL algorithms such as SAC.
 import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, LayerNormalization, Layer
 from tensorflow.keras import Model
