@@ -1,17 +1,13 @@
 # AutoSafe
 
-![TensorFlow](https://img.shields.io/badge/TensorFlow-2.16-orange?logo=tensorflow)
+![TensorFlow](https://img.shields.io/badge/TensorFlow-2.19-orange?logo=tensorflow)
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
 ![Linux](https://img.shields.io/badge/Linux-Ubuntu-yellow?logo=linux)
 
 ## Overview
 
 AutoSafe is a safe policy architecture for **safe online reinforcement learning**, where a policy must satisfy
-safety constraints *while it is still learning* from real interaction. Strict action interventions enforce safety
-but cause discontinuities in interaction and learning, while soft constraint regularization optimizes smoothly but
-gives little safety assurance.
-
-AutoSafe builds safety monitoring and intervention directly into action generation. It monitors the current
+safety constraints *while it is still learning* from real interaction. AutoSafe builds safety monitoring and intervention directly into action generation. It monitors the current
 safety margin and uses it to move smoothly between performance-driven and safety-preserving behavior. We
 realize this with a certified, lightweight model-based safety filter, so AutoSafe inherits the filter's safety
 guarantees under the same assumptions.
